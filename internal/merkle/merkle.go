@@ -1,0 +1,19 @@
+package mptree
+
+import "crosstrace/internal/merkle/merkletree"
+
+type MerkleTree interface {
+	Insert(item [][]byte) bool
+	Delete(item [][]byte) bool
+	Commit() bool
+	Contains(item [][]byte) (bool, error)
+	Root() []byte
+}
+
+type customMerkle struct {
+	merkletree.Merkle
+}
+
+func NewMerkleTree() MerkleTree {
+	return &customMerkle{}
+}
