@@ -38,6 +38,8 @@ func (post *PostEntry) Encode() ([]byte, error) {
 func (post *PostEntry) Decode(data []byte) error {
 	return encoders.Decode(data, post)
 }
+
+// Handle globalization of configs
 func NewJournalConfig(cfgs configs.Config) *JournalConfig {
 	cfg = cfgs
 	return &JournalConfig{}
@@ -48,7 +50,10 @@ func SetJournalEncoder(cfg *JournalConfig) {
 func SetJournalHasher(cfg *JournalConfig) {
 	hasher = crypto.NewHasher(cfg.NameHasher)
 }
-func Name() string{
+func SetConfigs(cfgs *configs.Config) {
+	cfg = *cfgs
+}
+func Name() string {
 	return hasher.Name()
 }
 

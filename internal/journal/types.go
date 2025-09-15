@@ -70,13 +70,13 @@ func NewPreEntry(maxsize uint64, raw_msg string, sender_id string, source string
 	return &PreEntry{raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
 }
 func NewJournalCache(name string, cfg configs.Config) JournalStore {
-	db, err := NewLocalStorage(name, cfg)
+	db, err := NewLocalStorage(name)
 	if err != nil {
 		return nil
 	}
-	return &JournalCache{Post: make([]JournalEntry, 10), store: db, cfg: cfg}
+	return &JournalCache{Post: make([]JournalEntry, 10), store: db}
 }
-func NewLocalStorage(name string, cfg configs.Config) (database.StorageDB, error) {
+func NewLocalStorage(name string) (database.StorageDB, error) {
 	switch name {
 	case "badgerdb":
 		return database.NewBadgerdb(cfg)
@@ -88,7 +88,6 @@ func NewLocalStorage(name string, cfg configs.Config) (database.StorageDB, error
 }
 
 type JournalCache struct {
-	cfg   configs.Config
 	store database.StorageDB
 	Post  []JournalEntry
 }

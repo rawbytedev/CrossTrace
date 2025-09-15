@@ -7,14 +7,15 @@ import (
 )
 
 type Config struct {
-	DataDir            string
-	StoreName          string
-	BadgerValueLogSize string
-	PebbleCacheSize    string
-	JournalCacheSize   string
-	Port               int
-	MsgSize            string
-	logFile            string
+	DataDir            string // path to store database
+	StoreName          string // database to use
+	BadgerValueLogSize string // logsize for badgerdb
+	PebbleCacheSize    string // pebbledb cache size
+	JournalCacheSize   string // JournalCacheSize max amount of Item in cache
+	Port               int    // Port to serve
+	MsgSize            string // size of payload
+	LogFile            string // location of configs
+
 }
 
 var sizeRegex = regexp.MustCompile(`^(\d+)([KMGTP]?B)$`)
