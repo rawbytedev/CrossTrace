@@ -27,8 +27,8 @@ type JournalStore interface {
 type JournalConfig struct {
 	MaxMsgSize  int
 	SafeMode    bool
-	nameencoder string
-	nameHasher  string
+	Nameencoder string
+	NameHasher  string
 }
 type BatchJournal struct {
 	entry []PostEntry

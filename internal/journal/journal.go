@@ -43,10 +43,13 @@ func NewJournalConfig(cfgs configs.Config) *JournalConfig {
 	return &JournalConfig{}
 }
 func SetJournalEncoder(cfg *JournalConfig) {
-	encoders = encoder.NewEncoder(cfg.nameencoder)
+	encoders = encoder.NewEncoder(cfg.Nameencoder)
 }
 func SetJournalHasher(cfg *JournalConfig) {
-	hasher = crypto.NewHasher(cfg.nameHasher)
+	hasher = crypto.NewHasher(cfg.NameHasher)
+}
+func Name() string{
+	return hasher.Name()
 }
 
 // Handle Sanitization : add global error vars
