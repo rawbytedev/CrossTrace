@@ -2,6 +2,7 @@ package mptree
 
 import "crosstrace/internal/merkle/merkletree"
 
+// item represent an hashed representation of the data
 type MerkleTree interface {
 	Insert(item [][]byte) bool
 	Delete(item [][]byte) bool

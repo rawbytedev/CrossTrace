@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -16,6 +17,49 @@ type Config struct {
 	MsgSize            string // size of payload
 	LogFile            string // location of configs
 
+}
+// Root config loaded at startup
+type Configs struct {
+    Journal   JournalConfig
+    Batcher   BatcherConfig
+    Anchor    AnchorConfig
+    Minting   MintingConfig
+    Server    ServerConfig
+}
+
+// Journal-specific knobs
+type JournalConfig struct {
+    CacheSize   int
+    DBPath      string
+    LogDir      string
+    EncoderName string
+    HasherName  string
+}
+
+// Batcher-specific knobs
+type BatcherConfig struct {
+    Depth     int
+    MaxLeaves int
+    MaxWindow time.Duration
+}
+
+// Anchor-specific knobs
+type AnchorConfig struct {
+    SolanaRPC   string
+    KeypairPath string
+}
+
+// Minting-specific knobs
+type MintingConfig struct {
+    CrossmintAPIKey    string
+    CrossmintProjectID string
+    CrossmintBaseURL   string
+    Recipient          string
+}
+
+// Server config
+type ServerConfig struct {
+    Port int
 }
 
 var sizeRegex = regexp.MustCompile(`^(\d+)([KMGTP]?B)$`)

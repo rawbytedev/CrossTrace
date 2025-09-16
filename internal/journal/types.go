@@ -5,6 +5,7 @@ import (
 	"crosstrace/internal/crypto"
 	"crosstrace/internal/encoder"
 	"crosstrace/internal/journal/database"
+	mptree "crosstrace/internal/merkle"
 	"time"
 )
 
@@ -24,14 +25,17 @@ type JournalStore interface {
 	Entries() []JournalEntry
 }
 
+type CommitResult struct {
+    BatchID    string
+    Root       [32]byte
+    Count      int
+    Entries    []PostEntry
+}
 type JournalConfig struct {
 	MaxMsgSize  int
 	SafeMode    bool
 	Nameencoder string
 	NameHasher  string
-}
-type BatchJournal struct {
-	entry []PostEntry
 }
 
 // Default format when received / Unsafe
@@ -101,22 +105,43 @@ func (j *JournalCache) Append(entry JournalEntry) (string, error) {
 	return entry.GetID(), nil
 }
 func (j *JournalCache) Commit() error {
-	for _, entry := range j.Post {
-		if len(j.Post) < 2 {
+	tree := mptree.NewMerkleTree()
+	var elem [][]byte
+	if len(j.Post) > 2 {
+		for _, entry := range j.Post {
 			enc, err := entry.Encode()
 			if err != nil {
 				return err
 			}
-			j.store.Put([]byte(entry.GetID()), enc)
+			item := hasher.Sum([]byte(entry.GetID()))
+			err = j.store.BatchPut(item, enc, false)
+			elem = append(elem, item)
+			if err != nil {
+				return err
+			}
+
 		}
+		if tree.Insert(elem) {
+			if tree.Commit() {
+				return j.store.BatchPut(nil, nil, true)
+			}
+
+		}
+
+	}
+	for _, entry := range j.Post {
 		enc, err := entry.Encode()
+		item := hasher.Sum([]byte(entry.GetID()))
 		if err != nil {
 			return err
 		}
-		err = j.store.BatchPut([]byte(entry.GetID()), enc, false)
-		if err != nil {
-			return err
+		elem = append(elem, item)
+		j.store.Put(item, enc)
+	}
+	if tree.Insert(elem) {
+		if tree.Commit() {
+			return nil
 		}
 	}
-	return j.store.BatchPut(nil, nil, true)
+	return nil // error
 }
