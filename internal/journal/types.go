@@ -26,10 +26,10 @@ type JournalStore interface {
 }
 
 type CommitResult struct {
-    BatchID    string
-    Root       [32]byte
-    Count      int
-    Entries    []PostEntry
+	BatchID string
+	Root    [32]byte
+	Count   int
+	Entries []PostEntry
 }
 type JournalConfig struct {
 	MaxMsgSize  int
@@ -104,22 +104,25 @@ func (j *JournalCache) Append(entry JournalEntry) (string, error) {
 	j.Post = append(j.Post, entry)
 	return entry.GetID(), nil
 }
+
 func (j *JournalCache) Commit() error {
 	tree := mptree.NewMerkleTree()
 	var elem [][]byte
 	if len(j.Post) > 2 {
-		for _, entry := range j.Post {
-			enc, err := entry.Encode()
-			if err != nil {
-				return err
-			}
-			item := hasher.Sum([]byte(entry.GetID()))
-			err = j.store.BatchPut(item, enc, false)
-			elem = append(elem, item)
-			if err != nil {
-				return err
-			}
+		for i, entry := range j.Post {
+			if i != len(j.Post)-1 {
+				enc, err := entry.Encode()
+				if err != nil {
+					return err
+				}
+				item := hasher.Sum([]byte(entry.GetID()))
+				err = j.store.BatchPut(item, enc, false)
+				elem = append(elem, item)
+				if err != nil {
+					return err
+				}
 
+			}
 		}
 		if tree.Insert(elem) {
 			if tree.Commit() {
@@ -127,21 +130,23 @@ func (j *JournalCache) Commit() error {
 			}
 
 		}
+		return nil // error
 
-	}
-	for _, entry := range j.Post {
-		enc, err := entry.Encode()
-		item := hasher.Sum([]byte(entry.GetID()))
-		if err != nil {
-			return err
+	} else {
+		for _, entry := range j.Post {
+			enc, err := entry.Encode()
+			item := hasher.Sum([]byte(entry.GetID()))
+			if err != nil {
+				return err
+			}
+			elem = append(elem, item)
+			j.store.Put(item, enc)
 		}
-		elem = append(elem, item)
-		j.store.Put(item, enc)
-	}
-	if tree.Insert(elem) {
-		if tree.Commit() {
-			return nil
+		if tree.Insert(elem) {
+			if tree.Commit() {
+				return nil
+			}
 		}
+		return nil // error
 	}
-	return nil // error
 }
