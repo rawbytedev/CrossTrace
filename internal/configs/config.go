@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// To remove
 type Config struct {
 	DataDir            string // path to store database
 	StoreName          string // database to use
@@ -30,30 +31,36 @@ type Configs struct {
 	Minting MintingConfig
 	Server  ServerConfig
 }
+
 func LoadConfig(path string) (*Configs, error) {
-    f, err := os.Open(path)
-    if err != nil {
-        return nil, err
-    }
-    defer f.Close()
-    var cfg Configs
-    dec := yaml.NewDecoder(f)
-    if err := dec.Decode(&cfg); err != nil {
-        return nil, err
-    }
-    return &cfg, nil
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var cfg Configs
+	dec := yaml.NewDecoder(f)
+	if err := dec.Decode(&cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }
+
 func validateConfig(cfg *Configs) error {
-	// Add validation logic here if needed
+	// Add validation logic here
 	return nil
 }
+
 // Journal-specific knobs
 type JournalConfig struct {
-	CacheSize   int
+	CacheSize   string
+	MaxMsgSize  int
 	DBPath      string
-	LogDir      string
+	DBName      string
+	LogSize     string
 	EncoderName string
 	HasherName  string
+	SafeMode    bool
 }
 
 // Batcher-specific knobs

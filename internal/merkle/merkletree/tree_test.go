@@ -13,7 +13,7 @@ func TestInsert(t *testing.T) {
 	}
 	m.Commit()
 	for _, item := range list {
-		vr, err := m.Contains(FromByte(item))
+		vr, err := m.Contains(item)
 		if err != nil {
 			t.Log(err)
 			t.Fail()

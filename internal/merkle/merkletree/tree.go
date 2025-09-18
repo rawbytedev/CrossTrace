@@ -48,8 +48,8 @@ func (m *Merkle) Delete(item [][]byte) bool {
 
 // check whether an items is in the merkle tree or not
 // true = is in tree; false = not in tree
-func (m *Merkle) Contains(item [][]byte) (bool, error) {
-	vr, err := m.m.VerifyContent(ToByte(item))
+func (m *Merkle) Contains(item []byte) (bool, error) {
+	vr, err := m.m.VerifyContent(item)
 	if err != nil {
 		return vr, err
 	}
@@ -59,7 +59,7 @@ func (m *Merkle) Root() []byte {
 	return m.m.Root.Hash
 }
 func (m *Merkle) Proof(item []byte) ([][]byte, []int64, error) {
-	vr, err := m.Contains(FromByte(item))
+	vr, err := m.Contains(item)
 	if err != nil {
 		return nil, nil, err
 	}

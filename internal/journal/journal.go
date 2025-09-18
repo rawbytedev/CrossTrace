@@ -4,6 +4,7 @@ import (
 	"crosstrace/internal/configs"
 	"crosstrace/internal/crypto"
 	"crosstrace/internal/encoder"
+	mptree "crosstrace/internal/merkle"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -11,6 +12,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
+
+var encoders = encoder.NewEncoder("rlp")
+
+// var cfg = configs.Config{}
+var hasher = crypto.NewHasher("sha256")
+var JournalConfig configs.JournalConfig
 
 func (pre *PreEntry) GetID() string {
 	return pre.session_id
@@ -39,19 +46,14 @@ func (post *PostEntry) Decode(data []byte) error {
 	return encoders.Decode(data, post)
 }
 
-// Handle globalization of configs
-func NewJournalConfig(cfgs configs.Config) *JournalConfig {
-	cfg = cfgs
-	return &JournalConfig{}
+func SetJournalEncoder() {
+	encoders = encoder.NewEncoder(JournalConfig.EncoderName)
 }
-func SetJournalEncoder(cfg *JournalConfig) {
-	encoders = encoder.NewEncoder(cfg.Nameencoder)
+func SetJournalHasher() {
+	hasher = crypto.NewHasher(JournalConfig.HasherName)
 }
-func SetJournalHasher(cfg *JournalConfig) {
-	hasher = crypto.NewHasher(cfg.NameHasher)
-}
-func SetConfigs(cfgs *configs.Config) {
-	cfg = *cfgs
+func SetJournalConfigs(cfgs configs.JournalConfig) {
+	JournalConfig = cfgs
 }
 func Name() string {
 	return hasher.Name()
@@ -59,10 +61,10 @@ func Name() string {
 
 // Handle Sanitization : add global error vars
 // change PreEntry/PostEntry to JournalEntry
-func SanitizePreEntry(cfg *JournalConfig, pre *PreEntry) (JournalEntry, error) {
+func SanitizePreEntry(pre *PreEntry) (JournalEntry, error) {
 	// size check
-	if len(pre.raw_msg) > cfg.MaxMsgSize {
-		return &PostEntry{}, fmt.Errorf("message exceeds max size: %d > %d", len(pre.raw_msg), cfg.MaxMsgSize)
+	if len(pre.raw_msg) > JournalConfig.MaxMsgSize {
+		return &PostEntry{}, fmt.Errorf("message exceeds max size: %d > %d", len(pre.raw_msg), JournalConfig.MaxMsgSize)
 	}
 	// UTF-8 validation
 	if !utf8.ValidString(pre.raw_msg) {
@@ -86,7 +88,7 @@ func SanitizePreEntry(cfg *JournalConfig, pre *PreEntry) (JournalEntry, error) {
 			cleanBuilder.WriteRune(r)
 		} else {
 			suspicious++
-			if cfg.SafeMode {
+			if JournalConfig.SafeMode {
 				// Replace with placeholder in safe mode
 				cleanBuilder.WriteRune(' ')
 			}
@@ -113,4 +115,69 @@ func SanitizePreEntry(cfg *JournalConfig, pre *PreEntry) (JournalEntry, error) {
 	// Return safe PostEntry
 	// Create NewPostEntry fot return
 	return &PostEntry{}, nil
+}
+
+// those are called by main
+func (j *JournalCache) Entries() []JournalEntry {
+	return j.Post
+}
+func (j *JournalCache) Append(entry JournalEntry) (string, error) {
+	j.Post = append(j.Post, entry)
+	return entry.GetID(), nil
+}
+
+func (j *JournalCache) Commit() error {
+	tree := mptree.NewMerkleTree()
+	var elem [][]byte
+	if len(j.Post) > 2 {
+		for i, entry := range j.Post {
+			if i != len(j.Post)-1 {
+				enc, err := entry.Encode()
+				if err != nil {
+					return err
+				}
+				item := hasher.Sum([]byte(entry.GetID()))
+				err = j.store.BatchPut(item, enc, false)
+				elem = append(elem, item)
+				if err != nil {
+					return err
+				}
+
+			} else {
+				enc, err := entry.Encode()
+				if err != nil {
+					return err
+				}
+				item := hasher.Sum([]byte(entry.GetID()))
+				j.store.BatchPut(item, enc, true)
+				elem = append(elem, item)
+				j.Post = j.Post[:0]
+				if tree.Insert(elem) {
+					if tree.Commit() {
+						return nil
+					}
+				}
+
+			}
+		}
+
+		return nil // error
+
+	} else {
+		for _, entry := range j.Post {
+			enc, err := entry.Encode()
+			item := hasher.Sum([]byte(entry.GetID()))
+			if err != nil {
+				return err
+			}
+			elem = append(elem, item)
+			j.store.Put(item, enc)
+		}
+		if tree.Insert(elem) {
+			if tree.Commit() {
+				return nil
+			}
+		}
+		return nil // error
+	}
 }

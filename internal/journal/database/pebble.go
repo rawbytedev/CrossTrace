@@ -33,20 +33,20 @@ type pebbledb struct {
 
 // NewPebbledb creates a new PebbleDB instance with the given config.
 // Returns a StorageDB interface or an error if initialization fails.
-func NewPebbledb(cfg dbconfig.Config) (StorageDB, error) {
+func NewPebbledb(cfg dbconfig.JournalConfig) (StorageDB, error) {
 	opts := &pebble.Options{
 		MaxOpenFiles:    5000,
 		BytesPerSync:    1 << 20,
 		WALBytesPerSync: 1 << 20,
 	}
-	if cfg.PebbleCacheSize != "" {
-		size, err := dbconfig.ParseSize(cfg.PebbleCacheSize)
+	if cfg.CacheSize != "" {
+		size, err := dbconfig.ParseSize(cfg.CacheSize)
 		if err != nil {
 			return nil, err
 		}
 		opts.Cache = pebble.NewCache(int64(size))
 	}
-	db, err := pebble.Open(cfg.DataDir, opts)
+	db, err := pebble.Open(cfg.DBPath, opts)
 	if err != nil {
 		return nil, err
 	}

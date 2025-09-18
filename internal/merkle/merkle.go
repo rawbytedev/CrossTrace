@@ -7,7 +7,7 @@ type MerkleTree interface {
 	Insert(item [][]byte) bool
 	Delete(item [][]byte) bool
 	Commit() bool
-	Contains(item [][]byte) (bool, error)
+	Contains(item []byte) (bool, error)
 	Proof(item []byte) ([][]byte, []int64 ,error)
 	Root() []byte
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/rlp"
+	"gopkg.in/yaml.v3"
 )
 
 type Encoder interface {
@@ -16,12 +17,21 @@ func NewEncoder(name string) Encoder {
 	switch name {
 	case "rlp":
 		return &RLPEncoder{}
+	case "yaml":
+		return &YamlEncoder{}
 	case "json":
 		return &JsonEncoder{}
+
 	default:
 		return &RLPEncoder{}
 	}
 }
+
+type YamlEncoder struct{}
+
+func (e YamlEncoder) Encode(v interface{}) ([]byte, error)    { return yaml.Marshal(v) }
+func (e YamlEncoder) Decode(data []byte, v interface{}) error { return yaml.Unmarshal(data, v) }
+func (e YamlEncoder) Name() string                            { return "yaml" }
 
 type JsonEncoder struct{}
 

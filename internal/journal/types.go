@@ -1,18 +1,9 @@
 package journal
 
 import (
-	"crosstrace/internal/configs"
-	"crosstrace/internal/crypto"
-	"crosstrace/internal/encoder"
 	"crosstrace/internal/journal/database"
-	mptree "crosstrace/internal/merkle"
 	"time"
 )
-
-var encoders = encoder.NewEncoder("yaml")
-var cfg = configs.Config{}
-var hasher = crypto.NewHasher("sha256")
-
 type JournalEntry interface {
 	GetID() string
 	GetTimestamp() time.Time
@@ -24,22 +15,12 @@ type JournalStore interface {
 	Commit() error
 	Entries() []JournalEntry
 }
-
 type CommitResult struct {
 	BatchID string
 	Root    [32]byte
 	Count   int
 	Entries []PostEntry
 }
-
-// change to config provided by global
-type JournalConfig struct {
-	MaxMsgSize  int
-	SafeMode    bool
-	Nameencoder string
-	NameHasher  string
-}
-
 // Default format when received / Unsafe
 type PreEntry struct {
 	sender_id  string
@@ -75,7 +56,7 @@ type Event struct {
 func NewPreEntry(maxsize uint64, raw_msg string, sender_id string, source string, session_id string) *PreEntry {
 	return &PreEntry{raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
 }
-func NewJournalCache(name string, cfg configs.Config) JournalStore {
+func NewJournalCache(name string) JournalStore {
 	db, err := NewLocalStorage(name)
 	if err != nil {
 		return nil
@@ -85,11 +66,11 @@ func NewJournalCache(name string, cfg configs.Config) JournalStore {
 func NewLocalStorage(name string) (database.StorageDB, error) {
 	switch name {
 	case "badgerdb":
-		return database.NewBadgerdb(cfg)
+		return database.NewBadgerdb(JournalConfig)
 	case "pebbledb":
-		return database.NewPebbledb(cfg)
+		return database.NewPebbledb(JournalConfig)
 	default:
-		return database.NewBadgerdb(cfg)
+		return database.NewBadgerdb(JournalConfig)
 	}
 }
 
@@ -98,67 +79,3 @@ type JournalCache struct {
 	Post  []JournalEntry
 }
 
-// those are called by main
-func (j *JournalCache) Entries() []JournalEntry {
-	return j.Post
-}
-func (j *JournalCache) Append(entry JournalEntry) (string, error) {
-	j.Post = append(j.Post, entry)
-	return entry.GetID(), nil
-}
-
-func (j *JournalCache) Commit() error {
-	tree := mptree.NewMerkleTree()
-	var elem [][]byte
-	if len(j.Post) > 2 {
-		for i, entry := range j.Post {
-			if i != len(j.Post)-1 {
-				enc, err := entry.Encode()
-				if err != nil {
-					return err
-				}
-				item := hasher.Sum([]byte(entry.GetID()))
-				err = j.store.BatchPut(item, enc, false)
-				elem = append(elem, item)
-				if err != nil {
-					return err
-				}
-
-			} else {
-				enc, err := entry.Encode()
-				if err != nil {
-					return err
-				}
-				item := hasher.Sum([]byte(entry.GetID()))
-				j.store.BatchPut(item, enc, true)
-				elem = append(elem, item)
-				j.Post = j.Post[:0]
-				if tree.Insert(elem) {
-					if tree.Commit() {
-						return nil
-					}
-				}
-
-			}
-		}
-
-		return nil // error
-
-	} else {
-		for _, entry := range j.Post {
-			enc, err := entry.Encode()
-			item := hasher.Sum([]byte(entry.GetID()))
-			if err != nil {
-				return err
-			}
-			elem = append(elem, item)
-			j.store.Put(item, enc)
-		}
-		if tree.Insert(elem) {
-			if tree.Commit() {
-				return nil
-			}
-		}
-		return nil // error
-	}
-}

@@ -12,6 +12,8 @@ import (
 	"slices"
 )
 
+// Note it must be hashed before being passed to node
+// by default sha256 is used to build the tree but for leafs any hash is accepted
 func isEqual(a, b []byte) bool {
 	return bytes.Equal(a, b)
 }
@@ -34,6 +36,7 @@ type MerkleTree struct {
 
 // Node represents a node, root, or leaf in the tree. It stores pointers to its immediate
 // relationships, a hash, the content stored if it is a leaf, and other metadata.
+
 type Node struct {
 	Tree   *MerkleTree
 	Parent *Node

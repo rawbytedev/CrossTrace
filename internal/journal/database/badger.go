@@ -33,10 +33,10 @@ type badgerdb struct {
 
 // NewBadgerdb creates a new BadgerDB instance with the given config.
 // Returns a StorageDB interface or an error if initialization fails.
-func NewBadgerdb(cfg dbconfig.Config) (StorageDB, error) {
-	opts := badger.DefaultOptions(cfg.DataDir)
-	if cfg.BadgerValueLogSize != "" {
-		size, err := dbconfig.ParseSize(cfg.BadgerValueLogSize)
+func NewBadgerdb(cfg dbconfig.JournalConfig) (StorageDB, error) {
+	opts := badger.DefaultOptions(cfg.DBPath)
+	if cfg.LogSize != "" {
+		size, err := dbconfig.ParseSize(cfg.LogSize)
 		if err != nil {
 			return nil, err
 		}
