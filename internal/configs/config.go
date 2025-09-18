@@ -2,9 +2,12 @@ package configs
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -18,48 +21,70 @@ type Config struct {
 	LogFile            string // location of configs
 
 }
+
 // Root config loaded at startup
 type Configs struct {
-    Journal   JournalConfig
-    Batcher   BatcherConfig
-    Anchor    AnchorConfig
-    Minting   MintingConfig
-    Server    ServerConfig
+	Journal JournalConfig
+	Batcher BatcherConfig
+	Anchor  AnchorConfig
+	Minting MintingConfig
+	Server  ServerConfig
 }
-
+func LoadConfig(path string) (*Configs, error) {
+    f, err := os.Open(path)
+    if err != nil {
+        return nil, err
+    }
+    defer f.Close()
+    var cfg Configs
+    dec := yaml.NewDecoder(f)
+    if err := dec.Decode(&cfg); err != nil {
+        return nil, err
+    }
+    return &cfg, nil
+}
+func validateConfig(cfg *Configs) error {
+	// Add validation logic here if needed
+	return nil
+}
 // Journal-specific knobs
 type JournalConfig struct {
-    CacheSize   int
-    DBPath      string
-    LogDir      string
-    EncoderName string
-    HasherName  string
+	CacheSize   int
+	DBPath      string
+	LogDir      string
+	EncoderName string
+	HasherName  string
 }
 
 // Batcher-specific knobs
+// the Main will be in charge of it or a batcher package
+// but it still best for main to make the calls
 type BatcherConfig struct {
-    Depth     int
-    MaxLeaves int
-    MaxWindow time.Duration
+	Depth     int
+	MaxLeaves int
+	MaxWindow time.Duration
 }
 
 // Anchor-specific knobs
+// used to anchor onto blockchain
 type AnchorConfig struct {
-    SolanaRPC   string
-    KeypairPath string
+	SolanaRPC   string
+	KeypairPath string
 }
 
 // Minting-specific knobs
+// minting on crossmint
 type MintingConfig struct {
-    CrossmintAPIKey    string
-    CrossmintProjectID string
-    CrossmintBaseURL   string
-    Recipient          string
+	CrossmintAPIKey    string
+	CrossmintProjectID string
+	CrossmintBaseURL   string
+	Recipient          string
 }
 
 // Server config
+// used by main to start server
 type ServerConfig struct {
-    Port int
+	Port int
 }
 
 var sizeRegex = regexp.MustCompile(`^(\d+)([KMGTP]?B)$`)

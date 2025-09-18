@@ -31,6 +31,8 @@ type CommitResult struct {
 	Count   int
 	Entries []PostEntry
 }
+
+// change to config provided by global
 type JournalConfig struct {
 	MaxMsgSize  int
 	SafeMode    bool
@@ -122,14 +124,24 @@ func (j *JournalCache) Commit() error {
 					return err
 				}
 
-			}
-		}
-		if tree.Insert(elem) {
-			if tree.Commit() {
-				return j.store.BatchPut(nil, nil, true)
-			}
+			} else {
+				enc, err := entry.Encode()
+				if err != nil {
+					return err
+				}
+				item := hasher.Sum([]byte(entry.GetID()))
+				j.store.BatchPut(item, enc, true)
+				elem = append(elem, item)
+				j.Post = j.Post[:0]
+				if tree.Insert(elem) {
+					if tree.Commit() {
+						return nil
+					}
+				}
 
+			}
 		}
+
 		return nil // error
 
 	} else {

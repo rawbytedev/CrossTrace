@@ -8,6 +8,7 @@ type MerkleTree interface {
 	Delete(item [][]byte) bool
 	Commit() bool
 	Contains(item [][]byte) (bool, error)
+	Proof(item []byte) ([][]byte, []int64 ,error)
 	Root() []byte
 }
 
