@@ -1,5 +1,4 @@
 # CrossTrace — Schema‑Driven Journaling & NFT Receipt Agent
-
 CrossTrace is a manifest‑driven Coral agent that transforms raw user or system events into verifiable, on‑chain receipts and NFT proofs.  
 It combines Go‑powered journaling, MistraAI orchestration, and Crossmint NFT minting to deliver a fully auditable, schema‑evolving event pipeline.
 
@@ -24,14 +23,6 @@ It combines Go‑powered journaling, MistraAI orchestration, and Crossmint NFT m
 4. MistraAI Orchestration — Interpret events, decide actions, suggest schema patches.
 5. Action Execution — Mint receipts, rollback state, or escalate for review.
 6. Crossmint Integration — Mint NFT receipts with claim URLs for end‑users.
-
----
-
-## API Endpoints
-
-- POST /logEvent — Submit a raw message for processing.
-- POST /replay — Replay journal entries between two checkpoints.
-- POST /rollback — Roll back to a previous checkpoint.
 
 ---
 
@@ -60,16 +51,10 @@ cd crosstrace
 go build -o crosstrace ./cmd/agent
 `
 
-### Run setup
-
-`bash
-./crosstrace setup --cache-size=128 --db-dir=./data --log-dir=./logs --max-msg-size=2048
-`
-
 ### Start agent
 
 `bash
-./crosstrace run
+./crosstrace.exe
 `
 
 ---
