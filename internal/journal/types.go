@@ -25,7 +25,7 @@ type JournalStore interface {
 type CommitResult struct {
 	BatchID string
 	Root    [32]byte
-	Count   int
+	Count   uint32
 	Entries []PostEntry
 }
 
@@ -76,4 +76,5 @@ type JournalCache struct {
 	store    database.StorageDB
 	Post     []JournalEntry
 	treeroot []byte
+	batchid  string
 }

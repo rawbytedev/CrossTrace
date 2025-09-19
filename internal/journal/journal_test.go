@@ -125,6 +125,7 @@ func TestJournalInsert(t *testing.T) {
 	}
 
 }
+
 // This test ensure that we can query database for data even after restarting
 func TestJournalInsertGet(t *testing.T) {
 	new := false
@@ -173,6 +174,95 @@ func TestJournalInsertGet(t *testing.T) {
 			}
 		}
 	} else {
+		cfg := NewJournalConfig()
+		SetAllJournalConfigs(*cfg)
+		journal := NewJournalCache(cfg)
+		bad_entries := GeneConstantPreEntry()
+		var san_entries []JournalEntry
+		// we expect to run into some bad entries
+		for i, entry := range bad_entries {
+			res, err := SanitizePreEntry(entry)
+			if err != nil {
+				t.Log(err)
+				t.Logf("Bad entry %d", i)
+				break
+			}
+			san_entries = append(san_entries, res)
+		}
+		for _, entry := range san_entries {
+			var v PostEntry
+			data, err := journal.Get(entry.GetID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = v.Decode(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v.Checksum != entry.GetID() {
+				t.Fatal("checksum mismatch")
+			}
+		}
+	}
+}
+
+func TestBatchQuery(t *testing.T) {
+	new := true
+	if new {
+		cfg := NewJournalConfig()
+		SetAllJournalConfigs(*cfg)
+		journal := NewJournalCache(cfg)
+		bad_entries := GeneConstantPreEntry()
+		var san_entries []JournalEntry
+		// we expect to run into some bad entries
+		for i, entry := range bad_entries {
+			res, err := SanitizePreEntry(entry)
+			if err != nil {
+				t.Log(err)
+				t.Logf("Bad entry %d", i)
+				continue
+			}
+			san_entries = append(san_entries, res)
+		}
+		for _, entry := range san_entries {
+			_, err := journal.Append(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		err := journal.BuildTree()
+		if err != nil {
+			t.Fatal(err)
+		}
+		com, err := journal.BatchInsert()
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = com
+		err = journal.Commit()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range san_entries {
+			var v PostEntry
+			data, err := journal.Get(entry.GetID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = v.Decode(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v.Checksum != entry.GetID() {
+				t.Fatal("checksum mismatch")
+			}
+		}
+	} else {
+		_ = CommitResult{
+			BatchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
+			Root:    [32]byte{89, 82, 203, 230, 157, 145, 229, 24, 119, 35, 162, 39, 108, 37, 209, 71, 3, 171, 242, 49, 6, 1, 84, 104, 252, 65, 22, 173, 7, 180, 233, 189},
+			Count:   0x3,
+		}
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg)
 		journal := NewJournalCache(cfg)

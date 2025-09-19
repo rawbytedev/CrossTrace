@@ -191,15 +191,23 @@ func (j *JournalCache) BuildTree() error {
 // needs len(j.post) j.treeroot timewindow
 func (j *JournalCache) BatchInsert() (*CommitResult, error) {
 	batch := CommitResult{
-		BatchID: hex.EncodeToString(j.treeroot)[:4],
-		Root:    [32]byte(j.treeroot),
-		Count:   len(j.Post),
+		Root:  [32]byte(j.treeroot),
+		Count: uint32(len(j.Post)),
 	}
+	// encode root + count
 	enc, err := batch.Encode()
 	if err != nil {
 		return &CommitResult{}, err
 	}
-	return &batch, j.store.Put(fmt.Appendf(nil, "batch:%s", j.treeroot), enc)
+	// derive hash from both
+	// us it as id
+	batch.BatchID = hex.EncodeToString(hasher.Sum(enc))
+	newenc, err := batch.Encode()
+	j.batchid = batch.BatchID
+	if err != nil {
+		return &CommitResult{}, err
+	}
+	return &batch, j.store.Put([]byte(j.batchid), newenc)
 }
 
 // only store post Entries
@@ -221,7 +229,7 @@ func (j *JournalCache) Commit() error {
 				if err != nil {
 					return err
 				}
-				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", hex.EncodeToString(j.treeroot)[:4], i)), []byte(entry.GetID()), false)
+				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", j.batchid, i)), []byte(entry.GetID()), false)
 				if err != nil {
 					return err
 				}
@@ -234,7 +242,7 @@ func (j *JournalCache) Commit() error {
 				if err != nil {
 					return err
 				}
-				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", hex.EncodeToString(j.treeroot)[:4], i)), []byte(entry.GetID()), true)
+				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", j.batchid, i)), []byte(entry.GetID()), true)
 				if err != nil {
 					return err
 				}
@@ -254,7 +262,7 @@ func (j *JournalCache) Commit() error {
 			if err != nil {
 				return err
 			}
-			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", hex.EncodeToString(j.treeroot)[:4], i)), []byte(entry.GetID()), true)
+			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", j.batchid, i)), []byte(entry.GetID()), true)
 			if err != nil {
 				return err
 			}
