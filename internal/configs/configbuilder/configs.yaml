@@ -1,0 +1,23 @@
+journal:
+    cachesize: 10MB
+    maxmsgsize: 30
+    dbpath: dbfolder
+    dbname: badgerdb
+    logsize: 10MB
+    encodername: rlp
+    hashername: sha256
+    safemode: false
+batcher:
+    depth: 0
+    maxleaves: 0
+    maxwindow: 0s
+anchor:
+    solanarpc: SOLANA_RPC
+    keypairpath: Path_TO_KEY_PAIR
+minting:
+    crossmintapikey: CROSSMINT_API
+    crossmintprojectid: ""
+    crossmintbaseurl: ""
+    recipient: ""
+server:
+    port: 5555

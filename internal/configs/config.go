@@ -7,21 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
-
-// To remove
-type Config struct {
-	DataDir            string // path to store database
-	StoreName          string // database to use
-	BadgerValueLogSize string // logsize for badgerdb
-	PebbleCacheSize    string // pebbledb cache size
-	JournalCacheSize   string // JournalCacheSize max amount of Item in cache
-	Port               int    // Port to serve
-	MsgSize            string // size of payload
-	LogFile            string // location of configs
-
-}
 
 // Root config loaded at startup
 type Configs struct {
@@ -45,7 +32,50 @@ func LoadConfig(path string) (*Configs, error) {
 	}
 	return &cfg, nil
 }
+func GeneDefault() {
+	f, err := os.Open("configs.yaml")
+	if err != nil {
+		fmt.Errorf("%s", err.Error())
+	}
+	if f == nil {
+		f, err = os.Create("configs.yaml")
+		if err != nil {
+			fmt.Errorf("%s", err.Error())
+		}
+	}
 
+	cfg := Configs{
+		Journal: JournalConfig{
+			CacheSize:   "10MB",
+			DBPath:      "dbfolder",
+			DBName:      "badgerdb",
+			LogSize:     "10MB",
+			EncoderName: "rlp",
+			HasherName:  "sha256",
+			MaxMsgSize:  30,
+		},
+		Anchor: AnchorConfig{
+			SolanaRPC:   "SOLANA_RPC",
+			KeypairPath: "Path_TO_KEY_PAIR",
+		},
+		Minting: MintingConfig{
+			CrossmintAPIKey:    "CROSSMINT_API",
+			CrossmintBaseURL:   "", // empty for default
+			CrossmintProjectID: "",
+			Recipient:          "",
+		},
+		Server: ServerConfig{
+			Port: 5555, // port of sse server / port to connect to
+		},
+	}
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		fmt.Printf("%s", err.Error())
+	}
+	f.Write(data)
+}
+
+// implement later
 func validateConfig(cfg *Configs) error {
 	// Add validation logic here
 	return nil
@@ -53,11 +83,11 @@ func validateConfig(cfg *Configs) error {
 
 // Journal-specific knobs
 type JournalConfig struct {
-	CacheSize   string
-	MaxMsgSize  int
-	DBPath      string
-	DBName      string
-	LogSize     string
+	CacheSize   string // pebbledb cache size
+	MaxMsgSize  int    // size of payload
+	DBPath      string // path to store database
+	DBName      string // database to use
+	LogSize     string // logsize for badgerdb
 	EncoderName string
 	HasherName  string
 	SafeMode    bool
@@ -66,6 +96,7 @@ type JournalConfig struct {
 // Batcher-specific knobs
 // the Main will be in charge of it or a batcher package
 // but it still best for main to make the calls
+// work in progress not needed right now
 type BatcherConfig struct {
 	Depth     int
 	MaxLeaves int

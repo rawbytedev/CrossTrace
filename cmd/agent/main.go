@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var cfg = configs.Config{Port: 1023}
+var cfg configs.Configs
 
 // PreEntry matches your journal.PreEntry shape
 type PreEntry struct {
