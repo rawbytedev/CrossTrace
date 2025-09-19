@@ -4,6 +4,8 @@ import (
 	"context"
 	"crosstrace/internal/crossmint"
 	"crosstrace/internal/journal"
+	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -65,8 +67,31 @@ func main() {
 	llm, _ := mistral.New(mistral.WithModel("open-mixtral-8x22b"),
 		mistral.WithAPIKey(cfgs.Server.MistralAi),
 	)
-	instructions := ""
+	instructions := ``
 	alltools = append(alltools, customtools...)
-	agent := agents.NewOneShotAgent(llm, alltools, agents.WithPromptFormatInstructions(instructions))
+	agent := agents.NewOneShotAgent(llm, alltools, agents.WithMaxIterations(3))
+	executor := agents.NewExecutor(agent)
+	mpc.OnNotification(func(notification mcp.JSONRPCNotification) {
+		log.Printf("Got notification: %s", notification.Method)
+		if notification.Method == "message" {
+			var payload struct {
+				SessionId string `json:"sessionid"`
+				Sender    string `json:"sender"`
+				Content   string `json:"content"`
+			}
+			data, err := notification.Params.MarshalJSON()
+			if err != nil {
+				log.Fatalf("error while marshalling: %s", err)
+			}
+			if err = json.Unmarshal(data, &payload); err != nil {
+				log.Fatalf("error while unmarshalling: %s", err)
+			}
+			fmt.Printf("User %s said: %s\n", payload.Sender, payload.Content)
+			result, err:= executor.Call(ctx, payload.Content)
+		}
+	})
+}
+
+func runTurn(ctx context.Context, llm *mistral.Model, exec *agents.Executor, userText string, toolindex map[string]tools.Tool) (string ,error){
 	
 }

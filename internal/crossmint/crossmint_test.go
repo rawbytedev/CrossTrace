@@ -41,7 +41,7 @@ func TestMinting(t *testing.T) {
 	}
 	SetMintConfig(configs.MintingConfig{
 		CrossmintAPIKey:       "sk_staging_6CJFQGekazgd2bECdmNUF66m7JPD8Ev8JSZerTmSvKX6hAaPUL8jfeRBaaUqVLD1MprP9zgG64AedkkW3xzxe4LiZmWofxwX7KuuxXezvFU4bxBwiGLhkAUnptBZMS8EzFdRx4SrZ6545o1SbHyoS23xz6wNrqvCohx2Q6NwTcjTZx8uwYSm1Zozj3pyNVWzi96qKKFLjZuUQkSvC2DNGzj1",
-		CrossmintCollectionID: "default",
+		CrossmintCollectionID: "cc222c91-a5b9-4bd5-8135-9ba5efc7512b",
 		CrossmintBaseURL:      "",
 		Recipient:             "email:radiationbolt@gmail.com:solana",
 	})

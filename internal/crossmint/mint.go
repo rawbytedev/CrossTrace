@@ -14,7 +14,6 @@ import (
 
 var MintConfig configs.MintingConfig
 
-
 func SetMintConfig(cfg configs.MintingConfig) {
 	MintConfig = cfg
 }
@@ -27,8 +26,7 @@ type MintResponse struct {
 		Chain  string `json:"chain"`
 	} `json:"onChain"`
 }
-type Minter struct{
-
+type Minter struct {
 }
 
 // MintReceiptNFT sends a mint request to Crossmint and returns the mint ID.
@@ -69,7 +67,7 @@ func MintReceiptNFT(ctx context.Context, rec journal.CommitResult, tx string) (s
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, err := io.ReadAll(resp.Body)
-		if err!= nil{
+		if err != nil {
 
 		}
 		return "", fmt.Errorf("crossmint mint failed: %d: %s", resp.StatusCode, body)

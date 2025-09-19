@@ -2,6 +2,7 @@ package configs
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -33,15 +34,9 @@ func LoadConfig(path string) (*Configs, error) {
 	return &cfg, nil
 }
 func GeneDefault() {
-	f, err := os.Open("configs.yaml")
+	f, err := os.Create("configs.yaml")
 	if err != nil {
-		fmt.Errorf("%s", err.Error())
-	}
-	if f == nil {
-		f, err = os.Create("configs.yaml")
-		if err != nil {
-			fmt.Errorf("%s", err.Error())
-		}
+		log.Fatalf("%s", err.Error())
 	}
 
 	cfg := Configs{
@@ -55,14 +50,14 @@ func GeneDefault() {
 			MaxMsgSize:  30,
 		},
 		Anchor: AnchorConfig{
-			SolanaRPC:   "SOLANA_RPC",
+			SolanaRPC:   "https://api.devnet.solana.com",
 			KeypairPath: "Path_TO_KEY_PAIR",
 		},
 		Minting: MintingConfig{
-			CrossmintAPIKey:       "CROSSMINT_API",
+			CrossmintAPIKey:       "sk_staging_6CJFQGekazgd2bECdmNUF66m7JPD8Ev8JSZerTmSvKX6hAaPUL8jfeRBaaUqVLD1MprP9zgG64AedkkW3xzxe4LiZmWofxwX7KuuxXezvFU4bxBwiGLhkAUnptBZMS8EzFdRx4SrZ6545o1SbHyoS23xz6wNrqvCohx2Q6NwTcjTZx8uwYSm1Zozj3pyNVWzi96qKKFLjZuUQkSvC2DNGzj1",
 			CrossmintBaseURL:      "", // empty for default
-			CrossmintCollectionID: "",
-			Recipient:             "",
+			CrossmintCollectionID: "cc222c91-a5b9-4bd5-8135-9ba5efc7512b",
+			Recipient:             "email:radiationbolt@gmail.com:solana",
 		},
 		Server: ServerConfig{
 			Port: 5555, // port of sse server / port to connect to
@@ -122,7 +117,7 @@ type MintingConfig struct {
 // Server config
 // used by main to start server
 type ServerConfig struct {
-	Port int
+	Port      int
 	MistralAi string
 }
 

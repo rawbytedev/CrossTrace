@@ -12,12 +12,13 @@ batcher:
     maxleaves: 0
     maxwindow: 0s
 anchor:
-    solanarpc: SOLANA_RPC
+    solanarpc: https://api.devnet.solana.com
     keypairpath: Path_TO_KEY_PAIR
 minting:
-    crossmintapikey: CROSSMINT_API
-    crossmintprojectid: ""
+    crossmintapikey: sk_staging_6CJFQGekazgd2bECdmNUF66m7JPD8Ev8JSZerTmSvKX6hAaPUL8jfeRBaaUqVLD1MprP9zgG64AedkkW3xzxe4LiZmWofxwX7KuuxXezvFU4bxBwiGLhkAUnptBZMS8EzFdRx4SrZ6545o1SbHyoS23xz6wNrqvCohx2Q6NwTcjTZx8uwYSm1Zozj3pyNVWzi96qKKFLjZuUQkSvC2DNGzj1
+    crossmintcollectionid: default-solana
     crossmintbaseurl: ""
-    recipient: ""
+    recipient: email:radiationbolt@gmail.com:solana
 server:
     port: 5555
+    mistralai: ""

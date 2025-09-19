@@ -5,7 +5,10 @@ import (
 	"crosstrace/internal/crossmint"
 	"crosstrace/internal/journal"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+
+	"github.com/tmc/langchaingo/tools"
 )
 
 type LogEventTool struct {
@@ -59,4 +62,24 @@ func (t *SealBatchTool) Call(ctx context.Context, input string) (string, error) 
 	}
 	return fmt.Sprintf("Batch %s sealde. Root=%x, Tx=%s, Claim=%s",
 		batch.BatchID, batch.Root[:], txhash, result), nil
+}
+
+type AgentAction struct {
+	Action      string          `json:"action"`
+	ActionInput json.RawMessage `json:"action_input"`
+}
+
+func handleAgentOutput(ctx context.Context, output string, tools map[string]tools.Tool) (string, error) {
+	var act AgentAction
+	if err := json.Unmarshal([]byte(output), &act); err != nil {
+		return "", fmt.Errorf("invalide agent output: %w", err)
+	}
+	if act.Action == "Final Answer" {
+		return string(act.ActionInput), nil
+	}
+	tool, ok := tools[act.Action]
+	if !ok {
+		return "", fmt.Errorf("unknown tool: %s", act.Action)
+	}
+	return tool.Call(ctx, string(act.Action))
 }
