@@ -17,6 +17,14 @@ var encoders encoder.Encoder
 var hasher crypto.Hasher
 var JournalConfig configs.JournalConfig
 
+type RetrieveOptions int
+
+const (
+	Checksum RetrieveOptions = iota
+	Sequence
+	BatchID
+)
+
 // the way to enter the journal package
 // call this first
 // only NewJournalCache is needed to start using package
@@ -272,6 +280,11 @@ func (j *JournalCache) Commit() error {
 }
 
 // id == checksum == hash
+// hash it according to type before calling it
 func (j *JournalCache) Get(id string) ([]byte, error) {
-	return j.store.Get(hasher.Sum(fmt.Appendf(nil, "chk:%s", id)))
+	item, err := hex.DecodeString(id)
+	if err != nil {
+		return []byte{}, err
+	}
+	return j.store.Get(item)
 }

@@ -6,7 +6,7 @@ useful to ensure that a corresponding nft receipt is issued
 [1. Direct lookup (checksum → PostEntry)  
    - For proof verification and audits.  
    - Key: chk:<checksum> → Value: encoded PostEntry.
-
+Hashed([]byte(chk:stringschecksum))
 2. Sequential journal (monotonic index → checksum)  
    - For replay and Merkle rebuild.  
    - Key: seq:<batch_id>:<n> → Value: checksum.  
@@ -18,3 +18,8 @@ useful to ensure that a corresponding nft receipt is issued
 ] might be added first or last
 commitresults will include:
 merkleroot -> needed to mint receipt
+
+Get is unified to retrieve a certain element
+use the pattern chk:%s: seq...
+then hash it using the appropriate hash function
+finally convert it to hexstring

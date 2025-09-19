@@ -3,6 +3,8 @@ package journal
 import (
 	"crosstrace/internal/configs"
 	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -111,7 +113,7 @@ func TestJournalInsert(t *testing.T) {
 	}
 	for _, entry := range san_entries {
 		var v PostEntry
-		data, err := journal.Get(entry.GetID())
+		data, err := journal.Get(format(entry.GetID()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -161,7 +163,7 @@ func TestJournalInsertGet(t *testing.T) {
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(entry.GetID())
+			data, err := journal.Get(format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -191,7 +193,7 @@ func TestJournalInsertGet(t *testing.T) {
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(entry.GetID())
+			data, err := journal.Get(format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -206,6 +208,12 @@ func TestJournalInsertGet(t *testing.T) {
 	}
 }
 
+// small format implementation
+func format(s string) string {
+	//hashed item
+	d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
+	return d
+}
 func TestBatchQuery(t *testing.T) {
 	new := true
 	if new {
@@ -245,7 +253,7 @@ func TestBatchQuery(t *testing.T) {
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(entry.GetID())
+			data, err := journal.Get(format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -280,7 +288,7 @@ func TestBatchQuery(t *testing.T) {
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(entry.GetID())
+			data, err := journal.Get(format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
