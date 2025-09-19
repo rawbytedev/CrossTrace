@@ -288,3 +288,29 @@ func (j *JournalCache) Get(id string) ([]byte, error) {
 	}
 	return j.store.Get(item)
 }
+
+// small Format implementation
+func Format(s string, opts ...RetrieveOptions) string {
+	// do not support multiple options yet
+	// for future use
+	if len(opts) == 1 {
+		switch opts[0] {
+		case Checksum:
+			d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
+			return d
+		default:
+			d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
+			return d
+		}
+	}
+	d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
+	return d
+
+}
+
+func FormatSeq(s string, n int) string {
+	return hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", s, n)))
+}
+func FormatBatch(s string) string{
+	return hex.EncodeToString([]byte(s))
+}

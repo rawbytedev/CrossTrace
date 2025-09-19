@@ -3,8 +3,7 @@ package journal
 import (
 	"crosstrace/internal/configs"
 	"crypto/rand"
-	"encoding/hex"
-	"fmt"
+
 	"testing"
 	"time"
 )
@@ -113,7 +112,7 @@ func TestJournalInsert(t *testing.T) {
 	}
 	for _, entry := range san_entries {
 		var v PostEntry
-		data, err := journal.Get(format(entry.GetID()))
+		data, err := journal.Get(Format(entry.GetID()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -163,7 +162,7 @@ func TestJournalInsertGet(t *testing.T) {
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(format(entry.GetID()))
+			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -193,7 +192,7 @@ func TestJournalInsertGet(t *testing.T) {
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(format(entry.GetID()))
+			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -208,12 +207,6 @@ func TestJournalInsertGet(t *testing.T) {
 	}
 }
 
-// small format implementation
-func format(s string) string {
-	//hashed item
-	d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
-	return d
-}
 func TestBatchQuery(t *testing.T) {
 	new := true
 	if new {
@@ -246,14 +239,13 @@ func TestBatchQuery(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_ = com
 		err = journal.Commit()
 		if err != nil {
 			t.Fatal(err)
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(format(entry.GetID()))
+			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -262,6 +254,20 @@ func TestBatchQuery(t *testing.T) {
 				t.Fatal(err)
 			}
 			if v.Checksum != entry.GetID() {
+				t.Fatal("checksum mismatch")
+			}
+		}
+		for i := range com.Count {
+			var v PostEntry
+			data, err := journal.Get(FormatSeq(com.BatchID, int(i)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = v.Decode(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v.Checksum != san_entries[i].GetID() {
 				t.Fatal("checksum mismatch")
 			}
 		}
@@ -288,7 +294,7 @@ func TestBatchQuery(t *testing.T) {
 		}
 		for _, entry := range san_entries {
 			var v PostEntry
-			data, err := journal.Get(format(entry.GetID()))
+			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
 			}
