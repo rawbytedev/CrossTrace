@@ -257,19 +257,33 @@ func TestBatchQuery(t *testing.T) {
 				t.Fatal("checksum mismatch")
 			}
 		}
+		/*
+			Format Sequence Test
+		*/
 		for i := range com.Count {
-			var v PostEntry
+			// retrieving checksum from batchID and at index i
+			// the comparing with records
+			t.Log("Testing Format Sequence")
 			data, err := journal.Get(FormatSeq(com.BatchID, int(i)))
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = v.Decode(data)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if v.Checksum != san_entries[i].GetID() {
+			if string(data) != san_entries[i].GetID() {
 				t.Fatal("checksum mismatch")
 			}
+		}
+		t.Log("Retrieving Batch")
+		var v CommitResult
+		data, err := journal.Get(FormatBatch(com.BatchID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = v.Decode(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v.Root != com.Root {
+			t.Fatal("mismatch Roots")
 		}
 	} else {
 		_ = CommitResult{

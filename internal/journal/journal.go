@@ -254,7 +254,7 @@ func (j *JournalCache) Commit() error {
 				if err != nil {
 					return err
 				}
-				j.Post = j.Post[:0]
+				j.RoolBack()
 				return nil
 			}
 		}
@@ -289,6 +289,13 @@ func (j *JournalCache) Get(id string) ([]byte, error) {
 	return j.store.Get(item)
 }
 
+// clean everything / for now it can only clear 
+func (j *JournalCache) RoolBack() {
+	j.Post = j.Post[:0]
+	j.batchid = ""
+	j.treeroot = nil
+}
+
 // small Format implementation
 func Format(s string, opts ...RetrieveOptions) string {
 	// do not support multiple options yet
@@ -311,6 +318,6 @@ func Format(s string, opts ...RetrieveOptions) string {
 func FormatSeq(s string, n int) string {
 	return hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", s, n)))
 }
-func FormatBatch(s string) string{
+func FormatBatch(s string) string {
 	return hex.EncodeToString([]byte(s))
 }
