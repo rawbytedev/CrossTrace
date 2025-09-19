@@ -11,10 +11,16 @@ type JournalEntry interface {
 	Encode() ([]byte, error)
 	Decode([]byte) error
 }
+
+// Complex due to the needs
+// building the tree separatly to allow fast debugging
 type JournalStore interface {
 	Append(entry JournalEntry) (journalID string, err error)
 	Commit() error
 	Entries() []JournalEntry
+	BuildTree() error
+	Get(id string) ([]byte, error)
+	BatchInsert() (*CommitResult, error)
 }
 type CommitResult struct {
 	BatchID string
@@ -62,6 +68,9 @@ func NewLocalStorage(name string) (database.StorageDB, error) {
 		return database.NewBadgerdb(JournalConfig)
 	}
 }
+
+// treeroot is left untouched unless buildtree is called
+// this avoid having to recompute tree if something fails along the way
 
 type JournalCache struct {
 	store    database.StorageDB

@@ -3,3 +3,18 @@ checksum:PostEntry :: decoding PostEntry and having PostEntry.cheksum != checksu
 
 how to store commitresults:
 useful to ensure that a corresponding nft receipt is issued
+[1. Direct lookup (checksum → PostEntry)  
+   - For proof verification and audits.  
+   - Key: chk:<checksum> → Value: encoded PostEntry.
+
+2. Sequential journal (monotonic index → checksum)  
+   - For replay and Merkle rebuild.  
+   - Key: seq:<batch_id>:<n> → Value: checksum.  
+   - This preserves event order inside a batch.] both will be added at same time
+
+[3. Batch metadata (batch_id → root, count, window, etc.)  
+   - For anchoring and NFT minting.  
+   - Key: batch:<batchid> → Value: encoded BatchRecord (root, count, start/end, solanatx, nft_url).
+] might be added first or last
+commitresults will include:
+merkleroot -> needed to mint receipt

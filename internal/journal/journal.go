@@ -69,6 +69,12 @@ func (post *PostEntry) Encode() ([]byte, error) {
 func (post *PostEntry) Decode(data []byte) error {
 	return encoders.Decode(data, post)
 }
+func (res *CommitResult) Encode() ([]byte, error) {
+	return encoders.Encode(res)
+}
+func (res *CommitResult) Decode(data []byte) error {
+	return encoders.Decode(data, res)
+}
 
 // set based on configuration
 // that means if config are changed during run
@@ -168,7 +174,11 @@ func (j *JournalCache) BuildTree() error {
 		// in this case Post Entry checksum
 		elem = append(elem, []byte(entry.GetID()))
 	}
-	res := tree.Commit()
+	res := tree.Insert(elem)
+	if !res {
+		return fmt.Errorf("unable to insert into tree")
+	}
+	res = tree.Commit()
 	if !res {
 		return fmt.Errorf("unable to build tree")
 	}
@@ -176,8 +186,29 @@ func (j *JournalCache) BuildTree() error {
 	return nil
 }
 
+// this is related to commitresult needed to mint and anchor
+// run after calling buildtree and before committing onto database
+// needs len(j.post) j.treeroot timewindow
+func (j *JournalCache) BatchInsert() (*CommitResult, error) {
+	batch := CommitResult{
+		BatchID: hex.EncodeToString(j.treeroot)[:4],
+		Root:    [32]byte(j.treeroot),
+		Count:   len(j.Post),
+	}
+	enc, err := batch.Encode()
+	if err != nil {
+		return &CommitResult{}, err
+	}
+	return &batch, j.store.Put(fmt.Appendf(nil, "batch:%s", j.treeroot), enc)
+}
+
 // only store post Entries
-// no need to hash here
+// entry are rehashed
+// pattern
+// chk:%s (checksum) -> PostEntry
+// batch:%s (batchid) -> CommitResult
+// seq:%s:%s (batchid) (n) -> checksum
+
 func (j *JournalCache) Commit() error {
 	if len(j.Post) > 2 {
 		for i, entry := range j.Post {
@@ -186,7 +217,11 @@ func (j *JournalCache) Commit() error {
 				if err != nil {
 					return err
 				}
-				err = j.store.BatchPut([]byte(entry.GetID()), enc, false)
+				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc, false)
+				if err != nil {
+					return err
+				}
+				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", hex.EncodeToString(j.treeroot)[:4], i)), []byte(entry.GetID()), false)
 				if err != nil {
 					return err
 				}
@@ -195,7 +230,14 @@ func (j *JournalCache) Commit() error {
 				if err != nil {
 					return err
 				}
-				j.store.BatchPut([]byte(entry.GetID()), enc, true)
+				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc, false)
+				if err != nil {
+					return err
+				}
+				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", hex.EncodeToString(j.treeroot)[:4], i)), []byte(entry.GetID()), true)
+				if err != nil {
+					return err
+				}
 				j.Post = j.Post[:0]
 				return nil
 			}
@@ -203,12 +245,19 @@ func (j *JournalCache) Commit() error {
 		return fmt.Errorf("out of loop")
 
 	} else {
-		for _, entry := range j.Post {
+		for i, entry := range j.Post {
 			enc, err := entry.Encode()
 			if err != nil {
 				return err
 			}
-			j.store.Put([]byte(entry.GetID()), enc)
+			err = j.store.Put(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc)
+			if err != nil {
+				return err
+			}
+			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", hex.EncodeToString(j.treeroot)[:4], i)), []byte(entry.GetID()), true)
+			if err != nil {
+				return err
+			}
 		}
 		return nil // error
 	}
@@ -216,5 +265,5 @@ func (j *JournalCache) Commit() error {
 
 // id == checksum == hash
 func (j *JournalCache) Get(id string) ([]byte, error) {
-	return j.store.Get([]byte(id))
+	return j.store.Get(hasher.Sum(fmt.Appendf(nil, "chk:%s", id)))
 }
