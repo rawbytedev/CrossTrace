@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crosstrace/internal/configs"
-
 	"fmt"
 	"log"
 	"time"
@@ -19,7 +17,7 @@ import (
 	"github.com/tmc/langchaingo/tools"
 )
 
-var cfgs configs.Configs
+
 
 func setuomain() {
 	ctx := context.Background()
@@ -80,14 +78,7 @@ func setuomain() {
 	fmt.Print(result)
 }
 
-func setup() error {
-	cfg, err := configs.LoadConfig("config.yaml")
-	if err != nil {
-		return err
-	}
-	cfgs = *cfg // copy over to global cfgs
-	return nil
-}
+
 func LaunchCoral() {
 	agen := agents.NewExecutor(&agents.OneShotZeroAgent{})
 	agen.GetInputKeys()
