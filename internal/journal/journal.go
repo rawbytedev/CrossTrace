@@ -47,7 +47,7 @@ func SetAllJournalConfigs(cfg configs.JournalConfig) {
 // testing
 // this is received by ai
 // Will remove this
-func NewPreEntry(maxsize uint64, raw_msg string, sender_id string, source string, session_id string) *PreEntry {
+func NewPreEntry(raw_msg string, sender_id string, source string, session_id string) *PreEntry {
 	return &PreEntry{raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
 }
 
@@ -199,8 +199,10 @@ func (j *JournalCache) BuildTree() error {
 // needs len(j.post) j.treeroot timewindow
 func (j *JournalCache) BatchInsert() (*CommitResult, error) {
 	batch := CommitResult{
-		Root:  [32]byte(j.treeroot),
-		Count: uint32(len(j.Post)),
+		Root:         [32]byte(j.treeroot),
+		Count:        uint32(len(j.Post)),
+		WindowsStart: j.Post[0].GetTimestamp(),
+		WindowsEnd:   j.Post[len(j.Post)-1].GetTimestamp(),
 	}
 	// encode root + count
 	enc, err := batch.Encode()
@@ -226,7 +228,7 @@ func (j *JournalCache) BatchInsert() (*CommitResult, error) {
 // seq:%s:%s (batchid) (n) -> checksum
 
 func (j *JournalCache) Commit() error {
-	if len(j.Post) > 2 {
+	if len(j.Post) > 1 {
 		for i, entry := range j.Post {
 			if i != len(j.Post)-1 {
 				enc, err := entry.Encode()
@@ -289,7 +291,7 @@ func (j *JournalCache) Get(id string) ([]byte, error) {
 	return j.store.Get(item)
 }
 
-// clean everything / for now it can only clear 
+// clean everything / for now it can only clear
 func (j *JournalCache) RoolBack() {
 	j.Post = j.Post[:0]
 	j.batchid = ""

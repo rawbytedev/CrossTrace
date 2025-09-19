@@ -23,10 +23,11 @@ type JournalStore interface {
 	BatchInsert() (*CommitResult, error)
 }
 type CommitResult struct {
-	BatchID string
-	Root    [32]byte
-	Count   uint32
-	Entries []PostEntry
+	BatchID      string
+	Root         [32]byte
+	Count        uint32
+	WindowsStart time.Time // first j.Port // assuming that it is ordered
+	WindowsEnd   time.Time // last j.Post
 }
 
 // Default format when received / Unsafe

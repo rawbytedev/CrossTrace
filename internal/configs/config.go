@@ -59,10 +59,10 @@ func GeneDefault() {
 			KeypairPath: "Path_TO_KEY_PAIR",
 		},
 		Minting: MintingConfig{
-			CrossmintAPIKey:    "CROSSMINT_API",
-			CrossmintBaseURL:   "", // empty for default
-			CrossmintProjectID: "",
-			Recipient:          "",
+			CrossmintAPIKey:       "CROSSMINT_API",
+			CrossmintBaseURL:      "", // empty for default
+			CrossmintCollectionID: "",
+			Recipient:             "",
 		},
 		Server: ServerConfig{
 			Port: 5555, // port of sse server / port to connect to
@@ -113,16 +113,17 @@ type AnchorConfig struct {
 // Minting-specific knobs
 // minting on crossmint
 type MintingConfig struct {
-	CrossmintAPIKey    string
-	CrossmintProjectID string
-	CrossmintBaseURL   string
-	Recipient          string
+	CrossmintAPIKey       string
+	CrossmintCollectionID string
+	CrossmintBaseURL      string
+	Recipient             string
 }
 
 // Server config
 // used by main to start server
 type ServerConfig struct {
 	Port int
+	MistralAi string
 }
 
 var sizeRegex = regexp.MustCompile(`^(\d+)([KMGTP]?B)$`)
