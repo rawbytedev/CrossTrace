@@ -23,6 +23,10 @@ func (t *LogEventTool) Call(ctx context.Context, input string) (string, error) {
 	return fmt.Sprintf("Event logged with checksum %s", post), nil
 }
 
+func ParsePreEntry(input string) journal.JournalEntry {
+	return &journal.PostEntry{}
+}
+
 type SealBatchTool struct {
 	Journal journal.JournalStore
 	Anchor  *crossmint.AnchorClient

@@ -3,13 +3,16 @@ package merkletree
 import (
 	"sync"
 )
-
+/*
+This implementation is a helper to faciliate the usage of merkle tree
+*/
 type Merkle struct {
 	m       *MerkleTree
 	mu      sync.RWMutex
 	pending [][]byte // list of pending data
 }
 
+// NewMerkle
 func NewMerkleTree(maxitem int) *Merkle {
 	return &Merkle{}
 }
@@ -25,6 +28,7 @@ func (m *Merkle) Insert(item [][]byte) bool {
 	return true
 
 }
+// Commit 
 func (m *Merkle) Commit() bool {
 	if m.m != nil {
 		err := m.m.Insert(m.pending)
