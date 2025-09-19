@@ -1,0 +1,24 @@
+journal:
+    cachesize: 10MB
+    maxmsgsize: 30
+    dbpath: dbfolder
+    dbname: badgerdb
+    logsize: 10MB
+    encodername: rlp
+    hashername: sha256
+    safemode: false
+batcher:
+    depth: 0
+    maxleaves: 0
+    maxwindow: 0s
+anchor:
+    solanarpc: https://api.devnet.solana.com
+    keypairpath: Path_TO_KEY_PAIR
+minting:
+    crossmintapikey: sk_staging_6CJFQGekazgd2bECdmNUF66m7JPD8Ev8JSZerTmSvKX6hAaPUL8jfeRBaaUqVLD1MprP9zgG64AedkkW3xzxe4LiZmWofxwX7KuuxXezvFU4bxBwiGLhkAUnptBZMS8EzFdRx4SrZ6545o1SbHyoS23xz6wNrqvCohx2Q6NwTcjTZx8uwYSm1Zozj3pyNVWzi96qKKFLjZuUQkSvC2DNGzj1
+    crossmintcollectionid: default-solana
+    crossmintbaseurl: ""
+    recipient: email:radiationbolt@gmail.com:solana
+server:
+    port: 5555
+    mistralai: ""
