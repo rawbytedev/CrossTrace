@@ -4,6 +4,7 @@ import (
 	"crosstrace/internal/journal/database"
 	"time"
 )
+
 type JournalEntry interface {
 	GetID() string
 	GetTimestamp() time.Time
@@ -21,6 +22,7 @@ type CommitResult struct {
 	Count   int
 	Entries []PostEntry
 }
+
 // Default format when received / Unsafe
 type PreEntry struct {
 	sender_id  string
@@ -28,18 +30,16 @@ type PreEntry struct {
 	timestamp  time.Time
 	source     string
 	session_id string
-	maxsize    int64
 }
 
 // PostEntry is the sanitized event
 type PostEntry struct {
-	SenderID  string            `json:"sender_id"`
-	SessionID string            `json:"session_id"`
-	Timestamp time.Time         `json:"timestamp"`
-	CleanMsg  string            `json:"clean_msg"`
-	Source    string            `json:"source"`
-	Meta      map[string]string `json:"meta"`
-	Checksum  string            `json:"checksum"`
+	SenderID  string    `json:"sender_id"`
+	SessionID string    `json:"session_id"`
+	Timestamp time.Time `json:"timestamp"`
+	CleanMsg  string    `json:"clean_msg"`
+	Source    string    `json:"source"`
+	Checksum  string    `json:"checksum"`
 }
 
 type Event struct {
@@ -52,17 +52,6 @@ type Event struct {
 	comment    string
 }
 
-// called by main
-func NewPreEntry(maxsize uint64, raw_msg string, sender_id string, source string, session_id string) *PreEntry {
-	return &PreEntry{raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
-}
-func NewJournalCache(name string) JournalStore {
-	db, err := NewLocalStorage(name)
-	if err != nil {
-		return nil
-	}
-	return &JournalCache{Post: make([]JournalEntry, 10), store: db}
-}
 func NewLocalStorage(name string) (database.StorageDB, error) {
 	switch name {
 	case "badgerdb":
@@ -75,7 +64,7 @@ func NewLocalStorage(name string) (database.StorageDB, error) {
 }
 
 type JournalCache struct {
-	store database.StorageDB
-	Post  []JournalEntry
+	store    database.StorageDB
+	Post     []JournalEntry
+	treeroot []byte
 }
-

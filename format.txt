@@ -1,0 +1,5 @@
+We store each post entry as:
+checksum:PostEntry :: decoding PostEntry and having PostEntry.cheksum != checksum means corrupted database
+
+how to store commitresults:
+useful to ensure that a corresponding nft receipt is issued

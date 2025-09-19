@@ -13,11 +13,35 @@ import (
 	"unicode/utf8"
 )
 
-var encoders = encoder.NewEncoder("rlp")
-
-// var cfg = configs.Config{}
-var hasher = crypto.NewHasher("sha256")
+var encoders encoder.Encoder
+var hasher crypto.Hasher
 var JournalConfig configs.JournalConfig
+
+// the way to enter the journal package
+// call this first
+// only NewJournalCache is needed to start using package
+func NewJournalCache(cfg *configs.JournalConfig) JournalStore {
+	db, err := NewLocalStorage(cfg.DBName)
+	if err != nil {
+		return nil
+	}
+	return &JournalCache{store: db}
+}
+
+// must be called from Main to set globally
+func SetAllJournalConfigs(cfg configs.JournalConfig) {
+	SetJournalConfigs(cfg)
+	SetJournalEncoder()
+	SetJournalHasher()
+}
+
+// called by main
+// testing
+// this is received by ai
+// Will remove this
+func NewPreEntry(maxsize uint64, raw_msg string, sender_id string, source string, session_id string) *PreEntry {
+	return &PreEntry{raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
+}
 
 func (pre *PreEntry) GetID() string {
 	return pre.session_id
@@ -33,7 +57,7 @@ func (pre *PreEntry) Decode(data []byte) error {
 }
 
 func (post *PostEntry) GetID() string {
-	return post.SessionID
+	return post.Checksum
 }
 func (post *PostEntry) GetTimestamp() time.Time {
 	return post.Timestamp
@@ -46,6 +70,10 @@ func (post *PostEntry) Decode(data []byte) error {
 	return encoders.Decode(data, post)
 }
 
+// set based on configuration
+// that means if config are changed during run
+// simply call set JournalConfigs and other setJournal
+// to change package configuration
 func SetJournalEncoder() {
 	encoders = encoder.NewEncoder(JournalConfig.EncoderName)
 }
@@ -54,9 +82,6 @@ func SetJournalHasher() {
 }
 func SetJournalConfigs(cfgs configs.JournalConfig) {
 	JournalConfig = cfgs
-}
-func Name() string {
-	return hasher.Name()
 }
 
 // Handle Sanitization : add global error vars
@@ -114,7 +139,14 @@ func SanitizePreEntry(pre *PreEntry) (JournalEntry, error) {
 	_ = checksumHex
 	// Return safe PostEntry
 	// Create NewPostEntry fot return
-	return &PostEntry{}, nil
+	return &PostEntry{
+		SenderID:  pre.sender_id,
+		SessionID: pre.session_id,
+		Source:    pre.source,
+		Timestamp: pre.timestamp,
+		CleanMsg:  cleanMsg,
+		Checksum:  checksumHex,
+	}, nil
 }
 
 // those are called by main
@@ -126,9 +158,27 @@ func (j *JournalCache) Append(entry JournalEntry) (string, error) {
 	return entry.GetID(), nil
 }
 
-func (j *JournalCache) Commit() error {
+// only call this when ready to commit
+// do not insert after building tree
+// if you insert rebuild tree or it won't match
+func (j *JournalCache) BuildTree() error {
 	tree := mptree.NewMerkleTree()
 	var elem [][]byte
+	for _, entry := range j.Post {
+		// in this case Post Entry checksum
+		elem = append(elem, []byte(entry.GetID()))
+	}
+	res := tree.Commit()
+	if !res {
+		return fmt.Errorf("unable to build tree")
+	}
+	j.treeroot = tree.Root()
+	return nil
+}
+
+// only store post Entries
+// no need to hash here
+func (j *JournalCache) Commit() error {
 	if len(j.Post) > 2 {
 		for i, entry := range j.Post {
 			if i != len(j.Post)-1 {
@@ -136,48 +186,35 @@ func (j *JournalCache) Commit() error {
 				if err != nil {
 					return err
 				}
-				item := hasher.Sum([]byte(entry.GetID()))
-				err = j.store.BatchPut(item, enc, false)
-				elem = append(elem, item)
+				err = j.store.BatchPut([]byte(entry.GetID()), enc, false)
 				if err != nil {
 					return err
 				}
-
 			} else {
 				enc, err := entry.Encode()
 				if err != nil {
 					return err
 				}
-				item := hasher.Sum([]byte(entry.GetID()))
-				j.store.BatchPut(item, enc, true)
-				elem = append(elem, item)
+				j.store.BatchPut([]byte(entry.GetID()), enc, true)
 				j.Post = j.Post[:0]
-				if tree.Insert(elem) {
-					if tree.Commit() {
-						return nil
-					}
-				}
-
+				return nil
 			}
 		}
-
-		return nil // error
+		return fmt.Errorf("out of loop")
 
 	} else {
 		for _, entry := range j.Post {
 			enc, err := entry.Encode()
-			item := hasher.Sum([]byte(entry.GetID()))
 			if err != nil {
 				return err
 			}
-			elem = append(elem, item)
-			j.store.Put(item, enc)
-		}
-		if tree.Insert(elem) {
-			if tree.Commit() {
-				return nil
-			}
+			j.store.Put([]byte(entry.GetID()), enc)
 		}
 		return nil // error
 	}
+}
+
+// id == checksum == hash
+func (j *JournalCache) Get(id string) ([]byte, error) {
+	return j.store.Get([]byte(id))
 }
