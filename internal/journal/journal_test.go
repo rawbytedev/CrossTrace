@@ -208,7 +208,7 @@ func TestJournalInsertGet(t *testing.T) {
 }
 
 func TestBatchQuery(t *testing.T) {
-	new := true
+	new := false // if run manually use new for a new db
 	if new {
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg)
