@@ -1,4 +1,5 @@
 # CrossTrace — Schema‑Driven Journaling & NFT Receipt Agent
+
 ![Top Language](https://img.shields.io/github/languages/top/rawbytedev/CrossTrace) ![Tests](https://github.com/rawbytedev/CrossTrace/actions/workflows/tests.yml/badge.svg)
 CrossTrace is a manifest‑driven Coral agent that transforms raw user or system events into verifiable, on‑chain receipts and NFT proofs.  
 It combines Go‑powered journaling, MistraAI orchestration, and Crossmint NFT minting to deliver a fully auditable, schema‑evolving event pipeline.
@@ -65,3 +66,9 @@ go build -o crosstrace ./cmd/agent
 Built for the Internet of Agents Hackathon @ Solana Skyline (Sept 14–21, 2025)
 
 ---
+
+## License
+
+This code is provided for hackathon evaluation purposes only.
+All right reserved.
+No license is granted for reuse, distrubution, or modification without written permission.

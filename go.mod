@@ -5,7 +5,6 @@ go 1.24.3
 require (
 	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/ethereum/go-ethereum v1.16.3
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
