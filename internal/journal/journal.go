@@ -57,6 +57,8 @@ func (pre *PreEntry) GetID() string {
 func (pre *PreEntry) GetTimestamp() time.Time {
 	return pre.timestamp
 }
+
+// needs to improve encoders implementation for easier use
 func (pre *PreEntry) Encode() ([]byte, error) {
 	return encoders.Encode(pre)
 }
@@ -228,41 +230,42 @@ func (j *JournalCache) BatchInsert() (*CommitResult, error) {
 // seq:%s:%s (batchid) (n) -> checksum
 
 func (j *JournalCache) Commit() error {
+	// j.Post get zerro when it goes low
+	// we can't get size from it at that point
+	// at this point seems like j contents get corrupted? need to investigate
+	//this fix it temporaly
+	size := len(j.Post)
+	batchid := j.batchid
 	if len(j.Post) > 1 {
 		for i, entry := range j.Post {
-			if i != len(j.Post)-1 {
-				enc, err := entry.Encode()
-				if err != nil {
-					return err
-				}
-				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc, false)
-				if err != nil {
-					return err
-				}
-				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", j.batchid, i)), []byte(entry.GetID()), false)
-				if err != nil {
-					return err
-				}
-			} else {
-				enc, err := entry.Encode()
-				if err != nil {
-					return err
-				}
-				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc, false)
-				if err != nil {
-					return err
-				}
-				err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", j.batchid, i)), []byte(entry.GetID()), true)
-				if err != nil {
-					return err
-				}
-				j.RoolBack()
-				return nil
+			enc, err := entry.Encode()
+			if err != nil {
+				return err
 			}
+			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc)
+			if err != nil {
+				return err
+			}
+			//use j.batchid here to test bug/ replace with batchid below
+			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
+			if err != nil {
+				return err
+			}
+			// once for last elem
+			// for testing the problem
+			// replace size-1 with len(j.Post)
+			// might be because it's a pointer?
+			if i == size-1 {
+				err = j.store.BatchPut(nil, nil)
+				if err != nil {
+					return err
+				}
+			}
+			j.RoolBack()
 		}
-		return fmt.Errorf("out of loop")
-
 	} else {
+		// mint individual if possible?
+		// or append to a batch and wait for it to grow
 		for i, entry := range j.Post {
 			enc, err := entry.Encode()
 			if err != nil {
@@ -272,13 +275,19 @@ func (j *JournalCache) Commit() error {
 			if err != nil {
 				return err
 			}
-			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", j.batchid, i)), []byte(entry.GetID()), true)
+			// remove this later but doesn't hurt
+			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
+			if err != nil {
+				return err
+			}
+			err = j.store.BatchPut(nil, nil)
 			if err != nil {
 				return err
 			}
 		}
 		return nil // error
 	}
+	return nil
 }
 
 // id == checksum == hash
@@ -296,6 +305,10 @@ func (j *JournalCache) RoolBack() {
 	j.Post = j.Post[:0]
 	j.batchid = ""
 	j.treeroot = nil
+}
+func (j *JournalCache) Close() error {
+	j.RoolBack()           // safety
+	return j.store.Close() // direct close
 }
 
 // small Format implementation

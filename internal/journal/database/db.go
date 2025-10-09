@@ -23,9 +23,9 @@ type StorageDB interface {
 	// Del deletes a key-value pair from the database.
 	Del(key []byte) error
 	// BatchPut adds a key-value pair to the current batch. If last is true, flushes the batch.
-	BatchPut(key []byte, data []byte, last bool) error
+	BatchPut(key []byte, data []byte) error
 	// BatchDel adds a delete operation to the current batch. If last is true, flushes the batch.
-	BatchDel(key []byte, last bool) error
+	BatchDel(key []byte) error
 	// Close closes the database and releases all resources.
 	Close() error
 }

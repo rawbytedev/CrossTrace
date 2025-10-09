@@ -44,7 +44,7 @@ func NewPebbledb(cfg dbconfig.JournalConfig) (StorageDB, error) {
 		if err != nil {
 			return nil, err
 		}
-		opts.Cache = pebble.NewCache(int64(size))
+		opts.Cache = pebble.NewCache(size)
 	}
 	db, err := pebble.Open(cfg.DBPath, opts)
 	if err != nil {
@@ -63,6 +63,12 @@ func (p *pebbledb) Put(key []byte, data []byte) error {
 	if p.db == nil {
 		return pebble.ErrClosed
 	}
+	if key == nil {
+		return ErrEmptydbKey
+	}
+	if data == nil {
+		return ErrEmptydbValue
+	}
 	return p.db.Set(key, data, pebble.Sync)
 }
 
@@ -70,6 +76,9 @@ func (p *pebbledb) Put(key []byte, data []byte) error {
 func (p *pebbledb) Get(key []byte) ([]byte, error) {
 	if p.db == nil {
 		return nil, pebble.ErrClosed
+	}
+	if key == nil {
+		return nil, ErrEmptydbKey
 	}
 	val, closer, err := p.db.Get(key)
 	if err != nil {
@@ -79,36 +88,48 @@ func (p *pebbledb) Get(key []byte) ([]byte, error) {
 	return val, nil
 }
 
-// BatchPut adds a key-value pair to the current batch. If last is true, commits the batch.
-func (p *pebbledb) BatchPut(key []byte, data []byte, last bool) error {
+// BatchPut adds a key-value pair to the current batch. If key and data == nil commits
+// since we use key = nil and data = nil before committing we'll have to make checks
+func (p *pebbledb) BatchPut(key []byte, data []byte) error {
 	if p.batch == nil {
 		return pebble.ErrClosed
 	}
-	if err := p.batch.Set(key, data, pebble.NoSync); err != nil {
-		p.batch.Close()
-		return err
+	// both key and data must be nil to commit
+	if key != nil && data != nil {
+		if err := p.batch.Set(key, data, pebble.NoSync); err != nil {
+			p.batch.Close()
+			return err
+		}
 	}
-	if last {
+	// must be better ways to do that
+	if key == nil && data == nil {
 		if err := p.batch.Commit(pebble.Sync); err != nil {
 			return err
 		}
 	}
+	if key == nil {
+		return ErrEmptydbKey
+	}
+	if data == nil {
+		return ErrEmptydbValue
+	}
+
 	return nil
 }
 
-// BatchDel adds a delete operation to the current batch. If last is true, commits the batch.
-func (p *pebbledb) BatchDel(key []byte, last bool) error {
+// BatchDel adds a delete operation to the current batch.
+func (p *pebbledb) BatchDel(key []byte) error {
 	if p.batch == nil {
 		return pebble.ErrClosed
 	}
+
 	if err := p.batch.Delete(key, pebble.NoSync); err != nil {
 		p.batch.Close()
 		return err
 	}
-	if last {
-		if err := p.batch.Commit(pebble.Sync); err != nil {
-			return err
-		}
+
+	if err := p.batch.Commit(pebble.Sync); err != nil {
+		return err
 	}
 	return nil
 }
@@ -117,6 +138,9 @@ func (p *pebbledb) BatchDel(key []byte, last bool) error {
 func (p *pebbledb) Del(key []byte) error {
 	if p.db == nil {
 		return pebble.ErrClosed
+	}
+	if key == nil {
+		return ErrEmptydbKey
 	}
 	return p.db.Delete(key, pebble.Sync)
 }
