@@ -22,8 +22,6 @@ import (
 	dbconfig "crosstrace/internal/configs"
 
 	"github.com/cockroachdb/pebble"
-	"math"
-	"math"
 	"fmt"
 )
 
