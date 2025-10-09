@@ -31,7 +31,7 @@ It combines Go‑powered journaling, MistraAI orchestration, and Crossmint NFT m
 ## Tech Stack
 
 - Language: Go
-- Storage: BadgerDB/PebbleDB for journaling and indexing
+- Storage: BadgerDB/PebbleDB for journaling and indexing(allows plugging custom db)
 - Blockchain: Solana Devnet for anchoring receipts
 - AI: MistraAI for event interpretation and decision‑making
 - NFTs: Crossmint for minting and distribution

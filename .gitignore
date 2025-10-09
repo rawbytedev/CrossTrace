@@ -1,0 +1,4 @@
+.github
+info/
+.vscode/settings.json
+internal/configs/configbuilder/ConfigBuilder.exe
