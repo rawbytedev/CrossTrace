@@ -22,6 +22,9 @@ import (
 	dbconfig "crosstrace/internal/configs"
 
 	"github.com/cockroachdb/pebble"
+	"math"
+	"math"
+	"fmt"
 )
 
 // pebbledb manages Database Insert/Deletion/Batch Operations for Pebble.
@@ -43,6 +46,9 @@ func NewPebbledb(cfg dbconfig.JournalConfig) (StorageDB, error) {
 		size, err := dbconfig.ParseSize(cfg.CacheSize)
 		if err != nil {
 			return nil, err
+		}
+		if size > math.MaxInt64 {
+			return nil, fmt.Errorf("cache size too large: must be <= %d bytes", math.MaxInt64)
 		}
 		opts.Cache = pebble.NewCache(int64(size))
 	}
