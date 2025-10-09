@@ -20,7 +20,8 @@ package database
 
 import (
 	dbconfig "crosstrace/internal/configs"
-
+	"math"
+	"fmt"
 	"github.com/dgraph-io/badger/v4"
 )
 
@@ -39,6 +40,9 @@ func NewBadgerdb(cfg dbconfig.JournalConfig) (StorageDB, error) {
 		size, err := dbconfig.ParseSize(cfg.LogSize)
 		if err != nil {
 			return nil, err
+		}
+		if size > uint64(math.MaxInt64) {
+			return nil, fmt.Errorf("log size %d bytes exceeds maximum supported value (%d)", size, int64(math.MaxInt64))
 		}
 		opts = opts.WithValueLogFileSize(int64(size))
 	}
