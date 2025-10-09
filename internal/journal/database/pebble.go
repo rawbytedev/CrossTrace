@@ -13,8 +13,8 @@
 //   err = db.Close()
 //
 // Batch operations:
-//   err = db.BatchPut(key, value, last)
-//   err = db.BatchDel(key, last)
+//   err = db.BatchPut(key, value)
+//   err = db.BatchDel(nil, nil) #commits batch to db
 
 package database
 
@@ -22,7 +22,6 @@ import (
 	dbconfig "crosstrace/internal/configs"
 
 	"github.com/cockroachdb/pebble"
-	"fmt"
 )
 
 // pebbledb manages Database Insert/Deletion/Batch Operations for Pebble.
