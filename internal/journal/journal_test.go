@@ -1,8 +1,11 @@
 package journal
 
 import (
+	"bytes"
 	"crosstrace/internal/configs"
 	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 
 	"testing"
 	"time"
@@ -124,15 +127,17 @@ func TestJournalInsert(t *testing.T) {
 			t.Fatal("checksum mismatch")
 		}
 	}
+	journal.Close()
 
 }
 
 // This test ensure that we can query database for data even after restarting
 func TestJournalInsertGet(t *testing.T) {
-	new := false
+	new := true
+
 	if new {
 		cfg := NewJournalConfig()
-		SetAllJournalConfigs(*cfg)
+		SetAllJournalConfigs(*cfg) // this needs to be in scope
 		journal := NewJournalCache(cfg)
 		bad_entries := GeneConstantPreEntry()
 		var san_entries []JournalEntry
@@ -174,6 +179,10 @@ func TestJournalInsertGet(t *testing.T) {
 				t.Fatal("checksum mismatch")
 			}
 		}
+		err = journal.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 	} else {
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg)
@@ -203,12 +212,21 @@ func TestJournalInsertGet(t *testing.T) {
 			if v.Checksum != entry.GetID() {
 				t.Fatal("checksum mismatch")
 			}
+
+		}
+		err := journal.Close()
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 }
 
+// error when trying to use in
+// tempdir
+// it has to do with how batcher handles write?
+// The process cannot access the file because it is being used by another process.
 func TestBatchQuery(t *testing.T) {
-	new := false // if run manually use new for a new db
+	new := true
 	if new {
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg)
@@ -263,10 +281,12 @@ func TestBatchQuery(t *testing.T) {
 		for i := range com.Count {
 			// retrieving checksum from batchID and at index i
 			// the comparing with records
-			t.Log("Testing Format Sequence")
 			data, err := journal.Get(FormatSeq(com.BatchID, int(i)))
 			if err != nil {
-				t.Fatal(err)
+				t.Log(err)
+				t.Log(com.Count)
+				t.Log(i)
+				t.Fatal("sequence while using Format for Seq")
 			}
 			if string(data) != san_entries[i].GetID() {
 				t.Fatal("checksum mismatch")
@@ -285,7 +305,12 @@ func TestBatchQuery(t *testing.T) {
 		if v.Root != com.Root {
 			t.Fatal("mismatch Roots")
 		}
+		err = journal.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 	} else {
+		// only peform query doesn't write to db
 		_ = CommitResult{
 			BatchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
 			Root:    [32]byte{89, 82, 203, 230, 157, 145, 229, 24, 119, 35, 162, 39, 108, 37, 209, 71, 3, 171, 242, 49, 6, 1, 84, 104, 252, 65, 22, 173, 7, 180, 233, 189},
@@ -320,5 +345,21 @@ func TestBatchQuery(t *testing.T) {
 				t.Fatal("checksum mismatch")
 			}
 		}
+		err := journal.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestFormatSeq(t *testing.T) {
+	cfg := NewJournalConfig()
+	SetAllJournalConfigs(*cfg)
+	s := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", "12", 1)))
+	b := FormatSeq("12", 1)
+	dat1, _ := hex.DecodeString(s)
+	dat2, _ := hex.DecodeString(b)
+	if !bytes.Equal(dat1, dat2) {
+		print("Bad")
 	}
 }

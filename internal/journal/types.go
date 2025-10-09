@@ -21,6 +21,7 @@ type JournalStore interface {
 	BuildTree() error
 	Get(id string) ([]byte, error)
 	BatchInsert() (*CommitResult, error)
+	Close() error // shutdows
 }
 type CommitResult struct {
 	BatchID      string

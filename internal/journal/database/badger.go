@@ -60,6 +60,12 @@ func (b *badgerdb) Put(key []byte, data []byte) error {
 	if b.db == nil {
 		return badger.ErrInvalidRequest
 	}
+	if key == nil {
+		return ErrEmptydbKey
+	}
+	if data == nil {
+		return ErrEmptydbValue
+	}
 	return b.db.Update(func(txn *badger.Txn) error {
 		return txn.Set(key, data)
 	})
@@ -69,6 +75,9 @@ func (b *badgerdb) Put(key []byte, data []byte) error {
 func (b *badgerdb) Get(key []byte) ([]byte, error) {
 	if b.db == nil {
 		return nil, badger.ErrInvalidRequest
+	}
+	if key == nil {
+		return nil, ErrEmptydbKey
 	}
 	var data []byte
 	err := b.db.View(func(txn *badger.Txn) error {
@@ -89,44 +98,58 @@ func (b *badgerdb) Del(key []byte) error {
 	if b.db == nil {
 		return badger.ErrInvalidRequest
 	}
+	if key == nil {
+		return ErrEmptydbKey
+	}
 	return b.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(key)
 	})
 }
 
-// BatchPut adds a key-value pair to the current batch. If last is true, flushes the batch.
+// BatchPut adds a key-value pair to the current batch.
 // Returns error if batch operation fails.
-func (b *badgerdb) BatchPut(key []byte, data []byte, last bool) error {
+func (b *badgerdb) BatchPut(key []byte, data []byte) error {
 	if b.batch == nil {
 		return badger.ErrInvalidRequest
 	}
-	err := b.batch.Set(key, data)
-	if err != nil {
-		b.batch.Cancel()
-		return err
-	}
-	if last {
-		if err := b.batch.Flush(); err != nil {
+	if key != nil && data != nil {
+		err := b.batch.Set(key, data)
+		if err != nil {
+			b.batch.Cancel()
 			return err
 		}
 	}
+	if key == nil && data == nil {
+		if err := b.batch.Flush(); err != nil {
+			return err
+		}
+		return nil
+	}
+	if key == nil {
+		return ErrEmptydbKey
+	}
+	if data == nil {
+		return ErrEmptydbValue
+	}
+
 	return nil
 }
 
-// BatchDel adds a delete operation to the current batch. If last is true, flushes the batch.
-func (b *badgerdb) BatchDel(key []byte, last bool) error {
+// BatchDel adds a delete operation to the current batch.
+func (b *badgerdb) BatchDel(key []byte) error {
 	if b.batch == nil {
 		return badger.ErrInvalidRequest
 	}
-	err := b.batch.Delete(key)
-	if err != nil {
-		b.batch.Cancel()
-		return err
-	}
-	if last {
-		if err := b.batch.Flush(); err != nil {
+	if key != nil {
+		err := b.batch.Delete(key)
+		if err != nil {
+			b.batch.Cancel()
 			return err
 		}
+	}
+
+	if err := b.batch.Flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -134,10 +157,12 @@ func (b *badgerdb) BatchDel(key []byte, last bool) error {
 // Close closes the database and releases all resources.
 func (b *badgerdb) Close() error {
 	if b.batch != nil {
+		// needs to works on plugging this or keeping records of batch
+		// this is a fast workaround but error not reported if
+		// flush faces errors
 		if err := b.batch.Flush(); err != nil {
-			return err
+			b.batch.Cancel()
 		}
-		b.batch.Cancel()
 	}
 	if b.db != nil {
 		return b.db.Close()

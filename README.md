@@ -44,6 +44,9 @@ It combines Go‑powered journaling, MistraAI orchestration, and Crossmint NFT m
 
 `bash
 git clone https://github.com/rawbytedev/crosstrace.git
+`
+
+`bash
 cd crosstrace
 `
 
@@ -69,6 +72,5 @@ Built for the Internet of Agents Hackathon @ Solana Skyline (Sept 14–21, 2025)
 
 ## License
 
-This code is provided for hackathon evaluation purposes only.
 All right reserved.
 No license is granted for reuse, distrubution, or modification without written permission.
