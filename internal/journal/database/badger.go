@@ -40,7 +40,7 @@ func NewBadgerdb(cfg dbconfig.JournalConfig) (StorageDB, error) {
 		if err != nil {
 			return nil, err
 		}
-		opts = opts.WithValueLogFileSize(int64(size))
+		opts = opts.WithValueLogFileSize(size)
 	}
 
 	db, err := badger.Open(opts)

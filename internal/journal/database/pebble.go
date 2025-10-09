@@ -44,7 +44,7 @@ func NewPebbledb(cfg dbconfig.JournalConfig) (StorageDB, error) {
 		if err != nil {
 			return nil, err
 		}
-		opts.Cache = pebble.NewCache(int64(size))
+		opts.Cache = pebble.NewCache(size)
 	}
 	db, err := pebble.Open(cfg.DBPath, opts)
 	if err != nil {
