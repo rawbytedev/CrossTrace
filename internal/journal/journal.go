@@ -265,8 +265,8 @@ func (j *JournalCache) Commit() error {
 		}
 	} else {
 		// mint individual if possible?
-		// or append to a batch and wait for it to grow
-		for i, entry := range j.Post {
+		// or append to a batch and wait for it to grow?
+		for _, entry := range j.Post {
 			enc, err := entry.Encode()
 			if err != nil {
 				return err
@@ -276,10 +276,11 @@ func (j *JournalCache) Commit() error {
 				return err
 			}
 			// remove this later but doesn't hurt
-			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
+			// we don't need batchid nor sequence for individual events
+			/*err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
 			if err != nil {
 				return err
-			}
+			}*/
 			err = j.store.BatchPut(nil, nil)
 			if err != nil {
 				return err
