@@ -162,7 +162,12 @@ func (b *badgerdb) FlushBatch() error {
 	if b.batch == nil {
 		return badger.ErrInvalidRequest
 	}
-	return b.batch.Flush()
+	err := b.batch.Flush()
+	b.batch = nil // reset batch after flush
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Close closes the database and releases all resources.

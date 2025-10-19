@@ -127,8 +127,10 @@ func TestJournalInsert(t *testing.T) {
 			t.Fatal("checksum mismatch")
 		}
 	}
-	journal.Close()
-
+	err = journal.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 // This test ensure that we can query database for data even after restarting

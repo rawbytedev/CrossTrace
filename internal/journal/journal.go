@@ -236,7 +236,7 @@ func (j *JournalCache) Commit() error {
 	//this fix it temporaly
 	size := len(j.Post)
 	batchid := j.batchid
-	if len(j.Post) > 1 {
+	if size > 1 {
 		for i, entry := range j.Post {
 			enc, err := entry.Encode()
 			if err != nil {
