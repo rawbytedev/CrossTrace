@@ -13,13 +13,16 @@
 //   err = db.Close()
 //
 // Batch operations:
-//   err = db.BatchPut(key, value, last)
-//   err = db.BatchDel(key, last)
+//   err = db.BatchPut(key, value)   // enqueue
+//   err = db.BatchPut(nil, nil)     // flush
+//   err = db.BatchDel(key)          // enqueue delete
+//   err = db.BatchDel(nil)          // flush
 
 package database
 
 import (
 	dbconfig "crosstrace/internal/configs"
+	"errors"
 
 	"github.com/cockroachdb/pebble"
 )
@@ -94,18 +97,19 @@ func (p *pebbledb) BatchPut(key []byte, data []byte) error {
 	if p.batch == nil {
 		return pebble.ErrClosed
 	}
-	// both key and data must be nil to commit
+
 	if key != nil && data != nil {
 		if err := p.batch.Set(key, data, pebble.NoSync); err != nil {
 			p.batch.Close()
 			return err
 		}
 	}
-	// must be better ways to do that
+	// both key and data must be nil to commit
 	if key == nil && data == nil {
-		if err := p.batch.Commit(pebble.Sync); err != nil {
+		if err := p.FlushBatch(); err != nil {
 			return err
 		}
+		return nil // important to avoid ErrEmptydbKey below
 	}
 	if key == nil {
 		return ErrEmptydbKey
@@ -113,7 +117,6 @@ func (p *pebbledb) BatchPut(key []byte, data []byte) error {
 	if data == nil {
 		return ErrEmptydbValue
 	}
-
 	return nil
 }
 
@@ -122,16 +125,18 @@ func (p *pebbledb) BatchDel(key []byte) error {
 	if p.batch == nil {
 		return pebble.ErrClosed
 	}
-
-	if err := p.batch.Delete(key, pebble.NoSync); err != nil {
-		p.batch.Close()
-		return err
+	if key != nil {
+		if err := p.batch.Delete(key, pebble.NoSync); err != nil {
+			p.batch.Close()
+			return err
+		}
+		return nil
+	} else {
+		if err := p.FlushBatch(); err != nil {
+			return err
+		}
+		return nil
 	}
-
-	if err := p.batch.Commit(pebble.Sync); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Del deletes a key-value pair from the database.
@@ -145,16 +150,31 @@ func (p *pebbledb) Del(key []byte) error {
 	return p.db.Delete(key, pebble.Sync)
 }
 
+// flushBatch flushes any pending batch operations.
+func (p *pebbledb) FlushBatch() error {
+	if p.batch == nil {
+		return pebble.ErrClosed
+	}
+	return p.batch.Commit(pebble.Sync)
+}
+
 // Close closes the database and releases all resources.
 func (p *pebbledb) Close() error {
+	var errs []error
 	if p.batch != nil {
 		if err := p.batch.Commit(pebble.Sync); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 		p.batch.Close()
 	}
 	if p.db != nil {
-		return p.db.Close()
+		if err := p.db.Close(); err != nil {
+			errs = append(errs, err)
+		}
+
 	}
-	return nil
+	if len(errs) == 0 {
+		return nil
+	}
+	return errors.Join(errs...)
 }

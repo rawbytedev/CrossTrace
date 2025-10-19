@@ -13,13 +13,16 @@
 //   err = db.Close()
 //
 // Batch operations:
-//   err = db.BatchPut(key, value, last)
-//   err = db.BatchDel(key, last)
+//   err = db.BatchPut(key, value)   // enqueue
+//   err = db.BatchPut(nil, nil)     // flush
+//   err = db.BatchDel(key)          // enqueue delete
+//   err = db.BatchDel(nil)          // flush
 
 package database
 
 import (
 	dbconfig "crosstrace/internal/configs"
+	"errors"
 
 	"github.com/dgraph-io/badger/v4"
 )
@@ -120,10 +123,10 @@ func (b *badgerdb) BatchPut(key []byte, data []byte) error {
 		}
 	}
 	if key == nil && data == nil {
-		if err := b.batch.Flush(); err != nil {
+		if err := b.FlushBatch(); err != nil {
 			return err
 		}
-		return nil
+		return nil // this is important to avoid ErrEmptydbKey below
 	}
 	if key == nil {
 		return ErrEmptydbKey
@@ -140,15 +143,28 @@ func (b *badgerdb) BatchDel(key []byte) error {
 	if b.batch == nil {
 		return badger.ErrInvalidRequest
 	}
-	if key != nil {
-		err := b.batch.Delete(key)
-		if err != nil {
-			b.batch.Cancel()
+	if key == nil {
+		// flushing is done when nil key is passed
+		if err := b.FlushBatch(); err != nil {
 			return err
 		}
-	}
 
-	if err := b.batch.Flush(); err != nil {
+	}
+	if err := b.batch.Delete(key); err != nil {
+		b.batch.Cancel()
+		return err
+	}
+	return nil
+}
+
+// FlushBatch flushes any pending batch operations.
+func (b *badgerdb) FlushBatch() error {
+	if b.batch == nil {
+		return badger.ErrInvalidRequest
+	}
+	err := b.batch.Flush()
+	b.batch = nil // reset batch after flush
+	if err != nil {
 		return err
 	}
 	return nil
@@ -156,16 +172,20 @@ func (b *badgerdb) BatchDel(key []byte) error {
 
 // Close closes the database and releases all resources.
 func (b *badgerdb) Close() error {
+	var errs []error
 	if b.batch != nil {
-		// needs to works on plugging this or keeping records of batch
-		// this is a fast workaround but error not reported if
-		// flush faces errors
-		if err := b.batch.Flush(); err != nil {
+		if err := b.FlushBatch(); err != nil {
 			b.batch.Cancel()
+			errs = append(errs, err)
 		}
 	}
 	if b.db != nil {
-		return b.db.Close()
+		if err := b.db.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	return nil
+	if len(errs) == 0 {
+		return nil
+	}
+	return errors.Join(errs...)
 }
