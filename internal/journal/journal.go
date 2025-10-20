@@ -1,6 +1,7 @@
 package journal
 
 import (
+	"crosstrace/context"
 	"crosstrace/internal/configs"
 	"crosstrace/internal/crypto"
 	"crosstrace/internal/encoder"
@@ -25,11 +26,10 @@ const (
 	BatchID
 )
 
-// the way to enter the journal package
-// call this first
-// only NewJournalCache is needed to start using package
-func NewJournalCache(cfg *configs.JournalConfig) JournalStore {
-	db, err := NewLocalStorage(cfg.DBName)
+// Entry point to Journalling
+
+func NewJournalCache(ctx *context.Context) JournalStore {
+	db, err := NewLocalStorage(ctx.Journal.DBName)
 	if err != nil {
 		return nil
 	}

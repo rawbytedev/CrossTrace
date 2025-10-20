@@ -2,6 +2,7 @@ package journal
 
 import (
 	"bytes"
+	"crosstrace/context"
 	"crosstrace/internal/configs"
 	"crypto/rand"
 	"encoding/hex"
@@ -86,7 +87,8 @@ func GeneConstantPreEntry() []*PreEntry {
 func TestJournalInsert(t *testing.T) {
 	cfg := NewJournalConfig()
 	SetAllJournalConfigs(*cfg)
-	journal := NewJournalCache(cfg)
+	ctx := context.Context{Journal: *cfg}
+	journal := NewJournalCache(&ctx)
 	bad_entries := GeneRandomPreEntry()
 	var san_entries []JournalEntry
 	// we expect to run into some bad entries
@@ -140,7 +142,9 @@ func TestJournalInsertGet(t *testing.T) {
 	if new {
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg) // this needs to be in scope
-		journal := NewJournalCache(cfg)
+		ctx := context.Context{Journal: *cfg}
+		journal := NewJournalCache(&ctx)
+
 		bad_entries := GeneConstantPreEntry()
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
@@ -188,7 +192,8 @@ func TestJournalInsertGet(t *testing.T) {
 	} else {
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg)
-		journal := NewJournalCache(cfg)
+		ctx := context.Context{Journal: *cfg}
+		journal := NewJournalCache(&ctx)
 		bad_entries := GeneConstantPreEntry()
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
@@ -232,7 +237,8 @@ func TestBatchQuery(t *testing.T) {
 	if new {
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg)
-		journal := NewJournalCache(cfg)
+		ctx := context.Context{Journal: *cfg}
+		journal := NewJournalCache(&ctx)
 		bad_entries := GeneConstantPreEntry()
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
@@ -320,7 +326,8 @@ func TestBatchQuery(t *testing.T) {
 		}
 		cfg := NewJournalConfig()
 		SetAllJournalConfigs(*cfg)
-		journal := NewJournalCache(cfg)
+		ctx := context.Context{Journal: *cfg}
+		journal := NewJournalCache(&ctx)
 		bad_entries := GeneConstantPreEntry()
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
