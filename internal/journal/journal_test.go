@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crosstrace/context"
 	"crosstrace/internal/configs"
+	"crosstrace/internal/crypto"
+	"crosstrace/internal/encoder"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -24,10 +26,11 @@ func NewJournalConfig() *configs.JournalConfig {
 	}
 }
 
-func GeneRandomPreEntry() []*PreEntry {
+func GeneRandomPreEntry(ctx *context.Context) []*PreEntry {
 	var items []*PreEntry
 	for range 7 {
 		items = append(items, &PreEntry{
+			ctx:        ctx,
 			sender_id:  rand.Text()[1:],
 			raw_msg:    rand.Text(),
 			timestamp:  time.Now(),
@@ -36,6 +39,7 @@ func GeneRandomPreEntry() []*PreEntry {
 		})
 	}
 	items = append(items, &PreEntry{
+		ctx:        ctx,
 		sender_id:  "12",
 		raw_msg:    "HelloThereThisisbeyongthemaxlenghtofmessage",
 		timestamp:  time.Now(),
@@ -43,6 +47,7 @@ func GeneRandomPreEntry() []*PreEntry {
 		session_id: "testing_Id",
 	})
 	items = append(items, &PreEntry{
+		ctx:        ctx,
 		sender_id:  "12",
 		raw_msg:    "In", // add invalide utf-8 character
 		timestamp:  time.Now(),
@@ -52,9 +57,10 @@ func GeneRandomPreEntry() []*PreEntry {
 
 	return items
 }
-func GeneConstantPreEntry() []*PreEntry {
+func GeneConstantPreEntry(ctx *context.Context) []*PreEntry {
 	var items []*PreEntry
 	items = append(items, &PreEntry{
+		ctx:        ctx,
 		sender_id:  "12",
 		raw_msg:    "HelloThereThisisbeyongthemaxlenghtofmessage",
 		timestamp:  time.Now(),
@@ -62,6 +68,7 @@ func GeneConstantPreEntry() []*PreEntry {
 		session_id: "testing_Id",
 	})
 	items = append(items, &PreEntry{
+		ctx:        ctx,
 		sender_id:  "129",
 		raw_msg:    "Hello message",
 		timestamp:  time.Now(),
@@ -69,6 +76,7 @@ func GeneConstantPreEntry() []*PreEntry {
 		session_id: "testing_Id",
 	})
 	items = append(items, &PreEntry{
+		ctx:        ctx,
 		sender_id:  "152",
 		raw_msg:    "World",
 		timestamp:  time.Now(),
@@ -76,6 +84,7 @@ func GeneConstantPreEntry() []*PreEntry {
 		session_id: "testing_Id",
 	})
 	items = append(items, &PreEntry{
+		ctx:        ctx,
 		sender_id:  "12",
 		raw_msg:    "In", // add invalide utf-8 character
 		timestamp:  time.Now(),
@@ -86,14 +95,15 @@ func GeneConstantPreEntry() []*PreEntry {
 }
 func TestJournalInsert(t *testing.T) {
 	cfg := NewJournalConfig()
-	SetAllJournalConfigs(*cfg)
 	ctx := context.Context{Journal: *cfg}
+	ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
+	ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 	journal := NewJournalCache(&ctx)
-	bad_entries := GeneRandomPreEntry()
+	bad_entries := GeneRandomPreEntry(&ctx)
 	var san_entries []JournalEntry
 	// we expect to run into some bad entries
 	for i, entry := range bad_entries {
-		res, err := SanitizePreEntry(entry)
+		res, err := SanitizePreEntry(&ctx, entry)
 		if err != nil {
 			t.Log(err)
 			t.Logf("Bad entry %d", i)
@@ -116,7 +126,7 @@ func TestJournalInsert(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range san_entries {
-		var v PostEntry
+		v := NewPostEntryWithCtx(&ctx)
 		data, err := journal.Get(Format(entry.GetID()))
 		if err != nil {
 			t.Fatal(err)
@@ -141,15 +151,15 @@ func TestJournalInsertGet(t *testing.T) {
 
 	if new {
 		cfg := NewJournalConfig()
-		SetAllJournalConfigs(*cfg) // this needs to be in scope
 		ctx := context.Context{Journal: *cfg}
+		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
+		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
-
-		bad_entries := GeneConstantPreEntry()
+		bad_entries := GeneRandomPreEntry(&ctx)
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
 		for i, entry := range bad_entries {
-			res, err := SanitizePreEntry(entry)
+			res, err := SanitizePreEntry(&ctx, entry)
 			if err != nil {
 				t.Log(err)
 				t.Logf("Bad entry %d", i)
@@ -172,7 +182,7 @@ func TestJournalInsertGet(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, entry := range san_entries {
-			var v PostEntry
+			v := NewPostEntryWithCtx(&ctx)
 			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
@@ -191,14 +201,15 @@ func TestJournalInsertGet(t *testing.T) {
 		}
 	} else {
 		cfg := NewJournalConfig()
-		SetAllJournalConfigs(*cfg)
 		ctx := context.Context{Journal: *cfg}
+		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
+		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
-		bad_entries := GeneConstantPreEntry()
+		bad_entries := GeneRandomPreEntry(&ctx)
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
 		for i, entry := range bad_entries {
-			res, err := SanitizePreEntry(entry)
+			res, err := SanitizePreEntry(&ctx, entry)
 			if err != nil {
 				t.Log(err)
 				t.Logf("Bad entry %d", i)
@@ -207,7 +218,7 @@ func TestJournalInsertGet(t *testing.T) {
 			san_entries = append(san_entries, res)
 		}
 		for _, entry := range san_entries {
-			var v PostEntry
+			v := NewPostEntryWithCtx(&ctx)
 			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
@@ -236,14 +247,15 @@ func TestBatchQuery(t *testing.T) {
 	new := true
 	if new {
 		cfg := NewJournalConfig()
-		SetAllJournalConfigs(*cfg)
 		ctx := context.Context{Journal: *cfg}
+		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
+		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
-		bad_entries := GeneConstantPreEntry()
+		bad_entries := GeneRandomPreEntry(&ctx)
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
 		for i, entry := range bad_entries {
-			res, err := SanitizePreEntry(entry)
+			res, err := SanitizePreEntry(&ctx, entry)
 			if err != nil {
 				t.Log(err)
 				t.Logf("Bad entry %d", i)
@@ -270,7 +282,7 @@ func TestBatchQuery(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, entry := range san_entries {
-			var v PostEntry
+			v := NewPostEntryWithCtx(&ctx)
 			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)
@@ -292,8 +304,6 @@ func TestBatchQuery(t *testing.T) {
 			data, err := journal.Get(FormatSeq(com.BatchID, int(i)))
 			if err != nil {
 				t.Log(err)
-				t.Log(com.Count)
-				t.Log(i)
 				t.Fatal("sequence while using Format for Seq")
 			}
 			if string(data) != san_entries[i].GetID() {
@@ -302,6 +312,7 @@ func TestBatchQuery(t *testing.T) {
 		}
 		t.Log("Retrieving Batch")
 		var v CommitResult
+		v.ctx = &ctx
 		data, err := journal.Get(FormatBatch(com.BatchID))
 		if err != nil {
 			t.Fatal(err)
@@ -325,14 +336,15 @@ func TestBatchQuery(t *testing.T) {
 			Count:   0x3,
 		}
 		cfg := NewJournalConfig()
-		SetAllJournalConfigs(*cfg)
 		ctx := context.Context{Journal: *cfg}
+		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
+		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
-		bad_entries := GeneConstantPreEntry()
+		bad_entries := GeneRandomPreEntry(&ctx)
 		var san_entries []JournalEntry
 		// we expect to run into some bad entries
 		for i, entry := range bad_entries {
-			res, err := SanitizePreEntry(entry)
+			res, err := SanitizePreEntry(&ctx, entry)
 			if err != nil {
 				t.Log(err)
 				t.Logf("Bad entry %d", i)
@@ -341,7 +353,7 @@ func TestBatchQuery(t *testing.T) {
 			san_entries = append(san_entries, res)
 		}
 		for _, entry := range san_entries {
-			var v PostEntry
+			v := NewPostEntryWithCtx(&ctx)
 			data, err := journal.Get(Format(entry.GetID()))
 			if err != nil {
 				t.Fatal(err)

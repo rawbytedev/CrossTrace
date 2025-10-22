@@ -2,6 +2,8 @@ package context
 
 import (
 	"crosstrace/internal/configs"
+	"crosstrace/internal/crypto"
+	"crosstrace/internal/encoder"
 )
 
 // Context store most of configs
@@ -16,6 +18,8 @@ type Context struct {
 	Anchor  configs.AnchorConfig
 	Batcher configs.BatcherConfig
 	Minting configs.MintingConfig
+	Encoder encoder.Encoder
+	Hasher  crypto.Hasher
 }
 
 func NewContext(cfg configs.Configs) *Context {
@@ -28,4 +32,6 @@ func (ctx *Context) Share() {
 	ctx.Anchor = ctx.Cfg.Anchor
 	ctx.Batcher = ctx.Cfg.Batcher
 	ctx.Minting = ctx.Cfg.Minting
+	ctx.Hasher = crypto.NewHasher(ctx.Journal.HasherName)
+	ctx.Encoder = encoder.NewEncoder(ctx.Journal.EncoderName)
 }

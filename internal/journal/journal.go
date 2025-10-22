@@ -4,7 +4,6 @@ import (
 	"crosstrace/context"
 	"crosstrace/internal/configs"
 	"crosstrace/internal/crypto"
-	"crosstrace/internal/encoder"
 	mptree "crosstrace/internal/merkle"
 	"encoding/hex"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"unicode/utf8"
 )
 
-var encoders encoder.Encoder
 var hasher crypto.Hasher
 var JournalConfig configs.JournalConfig
 
@@ -29,17 +27,17 @@ const (
 // Entry point to Journalling
 
 func NewJournalCache(ctx *context.Context) JournalStore {
-	db, err := NewLocalStorage(ctx.Journal.DBName)
+	db, err := NewLocalStorage(ctx)
 	if err != nil {
+		fmt.Print(err)
 		return nil
 	}
-	return &JournalCache{store: db}
+	return &JournalCache{ctx: ctx, store: db}
 }
 
 // must be called from Main to set globally
 func SetAllJournalConfigs(cfg configs.JournalConfig) {
 	SetJournalConfigs(cfg)
-	SetJournalEncoder()
 	SetJournalHasher()
 }
 
@@ -47,8 +45,11 @@ func SetAllJournalConfigs(cfg configs.JournalConfig) {
 // testing
 // this is received by ai
 // Will remove this
-func NewPreEntry(raw_msg string, sender_id string, source string, session_id string) *PreEntry {
-	return &PreEntry{raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
+func NewPreEntry(ctx *context.Context, raw_msg string, sender_id string, source string, session_id string) *PreEntry {
+	return &PreEntry{ctx: ctx, raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
+}
+func NewPostEntryWithCtx(ctx *context.Context) *PostEntry {
+	return &PostEntry{ctx: ctx}
 }
 
 func (pre *PreEntry) GetID() string {
@@ -60,10 +61,17 @@ func (pre *PreEntry) GetTimestamp() time.Time {
 
 // needs to improve encoders implementation for easier use
 func (pre *PreEntry) Encode() ([]byte, error) {
-	return encoders.Encode(pre)
+	return pre.ctx.Encoder.Encode(pre)
 }
 func (pre *PreEntry) Decode(data []byte) error {
-	return encoders.Decode(data, pre)
+	return pre.ctx.Encoder.Decode(data, pre)
+}
+func (pre *PreEntry) Sum() []byte {
+	data, err := pre.Encode()
+	if err != nil {
+		return nil
+	}
+	return pre.ctx.Hasher.Sum(data)
 }
 
 func (post *PostEntry) GetID() string {
@@ -74,25 +82,22 @@ func (post *PostEntry) GetTimestamp() time.Time {
 }
 
 func (post *PostEntry) Encode() ([]byte, error) {
-	return encoders.Encode(post)
+	return post.ctx.Encoder.Encode(post)
 }
 func (post *PostEntry) Decode(data []byte) error {
-	return encoders.Decode(data, post)
+	return post.ctx.Encoder.Decode(data, post)
 }
 func (res *CommitResult) Encode() ([]byte, error) {
-	return encoders.Encode(res)
+	return res.ctx.Encoder.Encode(res)
 }
 func (res *CommitResult) Decode(data []byte) error {
-	return encoders.Decode(data, res)
+	return res.ctx.Encoder.Decode(data, res)
 }
 
 // set based on configuration
 // that means if config are changed during run
 // simply call set JournalConfigs and other setJournal
 // to change package configuration
-func SetJournalEncoder() {
-	encoders = encoder.NewEncoder(JournalConfig.EncoderName)
-}
 func SetJournalHasher() {
 	hasher = crypto.NewHasher(JournalConfig.HasherName)
 }
@@ -102,10 +107,11 @@ func SetJournalConfigs(cfgs configs.JournalConfig) {
 
 // Handle Sanitization : add global error vars
 // change PreEntry/PostEntry to JournalEntry
-func SanitizePreEntry(pre *PreEntry) (JournalEntry, error) {
+func SanitizePreEntry(ctx *context.Context, pre *PreEntry) (JournalEntry, error) {
 	// size check
-	if len(pre.raw_msg) > JournalConfig.MaxMsgSize {
-		return &PostEntry{}, fmt.Errorf("message exceeds max size: %d > %d", len(pre.raw_msg), JournalConfig.MaxMsgSize)
+
+	if len(pre.raw_msg) > ctx.Journal.MaxMsgSize {
+		return &PostEntry{}, fmt.Errorf("message exceeds max size: %d > %d", len(pre.raw_msg), ctx.Journal.MaxMsgSize)
 	}
 	// UTF-8 validation
 	if !utf8.ValidString(pre.raw_msg) {
@@ -150,12 +156,13 @@ func SanitizePreEntry(pre *PreEntry) (JournalEntry, error) {
 	// Compute checksum (SHA-256 of clean message + sender + timestamp)
 	// Change to Hasher interface
 	checksumInput := fmt.Sprintf("%s|%s|%s", cleanMsg, pre.sender_id, pre.timestamp.UTC().Format(time.RFC3339Nano))
-	checksum := hasher.Sum([]byte(checksumInput))
+	checksum := ctx.Hasher.Sum([]byte(checksumInput))
 	checksumHex := hex.EncodeToString(checksum[:])
 	_ = checksumHex
 	// Return safe PostEntry
 	// Create NewPostEntry fot return
 	return &PostEntry{
+		ctx:       ctx,
 		SenderID:  pre.sender_id,
 		SessionID: pre.session_id,
 		Source:    pre.source,
@@ -201,6 +208,7 @@ func (j *JournalCache) BuildTree() error {
 // needs len(j.post) j.treeroot timewindow
 func (j *JournalCache) BatchInsert() (*CommitResult, error) {
 	batch := CommitResult{
+		ctx:          j.ctx,
 		Root:         [32]byte(j.treeroot),
 		Count:        uint32(len(j.Post)),
 		WindowsStart: j.Post[0].GetTimestamp(),
@@ -208,18 +216,20 @@ func (j *JournalCache) BatchInsert() (*CommitResult, error) {
 	}
 	// encode root + count
 	enc, err := batch.Encode()
+	fmt.Print("Logging encoded")
+	fmt.Print(enc)
 	if err != nil {
 		return &CommitResult{}, err
 	}
 	// derive hash from both
 	// us it as id
-	batch.BatchID = hex.EncodeToString(hasher.Sum(enc))
+	batch.BatchID = hex.EncodeToString(j.hash(enc))
 	newenc, err := batch.Encode()
 	j.batchid = batch.BatchID
 	if err != nil {
 		return &CommitResult{}, err
 	}
-	return &batch, j.store.Put([]byte(j.batchid), newenc)
+	return &batch, j.store.Put(j.ctx.Hasher.Sum([]byte(batch.BatchID)), newenc)
 }
 
 // only store post Entries
@@ -228,64 +238,50 @@ func (j *JournalCache) BatchInsert() (*CommitResult, error) {
 // chk:%s (checksum) -> PostEntry
 // batch:%s (batchid) -> CommitResult
 // seq:%s:%s (batchid) (n) -> checksum
-
 func (j *JournalCache) Commit() error {
 	// j.Post get zerro when it goes low
 	// we can't get size from it at that point
 	// at this point seems like j contents get corrupted? need to investigate
 	//this fix it temporaly
 	size := len(j.Post)
-	batchid := j.batchid
 	if size > 1 {
-		for i, entry := range j.Post {
-			enc, err := entry.Encode()
-			if err != nil {
-				return err
-			}
-			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc)
-			if err != nil {
-				return err
-			}
-			//use j.batchid here to test bug/ replace with batchid below
-			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
-			if err != nil {
-				return err
-			}
-			// once for last elem
-			// for testing the problem
-			// replace size-1 with len(j.Post)
-			// might be because it's a pointer?
-			if i == size-1 {
-				err = j.store.BatchPut(nil, nil)
-				if err != nil {
-					return err
-				}
-			}
-			j.RoolBack()
+		return j.largeCommit()
+	}
+	return nil
+}
+func (j *JournalCache) hash(data []byte) []byte {
+	return j.ctx.Hasher.Sum(data)
+}
+
+// used to peform largecommit when elems are >1
+func (j *JournalCache) largeCommit() error {
+	size := len(j.Post)
+	batchid := j.batchid
+	for i, entry := range j.Post {
+		enc, err := entry.Encode()
+		if err != nil {
+			return err
 		}
-	} else {
-		// mint individual if possible?
-		// or append to a batch and wait for it to grow
-		for i, entry := range j.Post {
-			enc, err := entry.Encode()
-			if err != nil {
-				return err
-			}
-			err = j.store.Put(hasher.Sum(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc)
-			if err != nil {
-				return err
-			}
-			// remove this later but doesn't hurt
-			err = j.store.BatchPut(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
-			if err != nil {
-				return err
-			}
+		err = j.store.BatchPut(j.hash(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc)
+		if err != nil {
+			return err
+		}
+		//use j.batchid here to test bug/ replace with batchid below
+		err = j.store.BatchPut(j.hash(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
+		if err != nil {
+			return err
+		}
+		// once for last elem
+		// for testing the problem
+		// replace size-1 with len(j.Post)
+		// might be because it's a pointer?
+		if i == size-1 {
 			err = j.store.BatchPut(nil, nil)
 			if err != nil {
 				return err
 			}
 		}
-		return nil // error
+		j.RoolBack()
 	}
 	return nil
 }
@@ -294,10 +290,11 @@ func (j *JournalCache) Commit() error {
 // hash it according to type before calling it
 func (j *JournalCache) Get(id string) ([]byte, error) {
 	item, err := hex.DecodeString(id)
+	obj := j.ctx.Hasher.Sum(item)
 	if err != nil {
 		return []byte{}, err
 	}
-	return j.store.Get(item)
+	return j.store.Get(obj)
 }
 
 // clean everything / for now it can only clear
@@ -325,13 +322,13 @@ func Format(s string, opts ...RetrieveOptions) string {
 			return d
 		}
 	}
-	d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
+	d := hex.EncodeToString(fmt.Appendf(nil, "chk:%s", s))
 	return d
 
 }
 
 func FormatSeq(s string, n int) string {
-	return hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", s, n)))
+	return hex.EncodeToString(fmt.Appendf(nil, "seq:%s:%d", s, n))
 }
 func FormatBatch(s string) string {
 	return hex.EncodeToString([]byte(s))
