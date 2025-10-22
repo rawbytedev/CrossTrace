@@ -259,6 +259,7 @@ func (j *JournalCache) largeCommit() error {
 		// for testing the problem
 		// replace size-1 with len(j.Post)
 		// might be because it's a pointer?
+    // can be done after loop
 		if i == size-1 {
 			err = j.store.BatchPut(nil, nil)
 			if err != nil {
