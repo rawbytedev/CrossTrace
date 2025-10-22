@@ -373,10 +373,19 @@ func TestBatchQuery(t *testing.T) {
 	}
 }
 
+// seq == sequence it allow to track down event
+/*
+Assuming that a batch has 10 events we compute the batchid(unique identified) and stores it
+with batch metadata
+each event is store individually using chk:(id of event) as key and event content as value
+each seq represent an event stored in order seq:%s:%d -> id of event
+%s represent the batchid and %d is the position of event in the whole batch
+*/
 func TestFormatSeq(t *testing.T) {
 	cfg := NewJournalConfig()
-	SetAllJournalConfigs(*cfg)
-	s := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", "12", 1)))
+	ctx := context.NewContext(configs.Configs{Journal: *cfg})
+	ctx.Hasher = crypto.NewHasher(ctx.Journal.HasherName)
+	s := hex.EncodeToString(ctx.Hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", "12", 1)))
 	b := FormatSeq("12", 1)
 	dat1, _ := hex.DecodeString(s)
 	dat2, _ := hex.DecodeString(b)

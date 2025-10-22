@@ -2,8 +2,6 @@ package journal
 
 import (
 	"crosstrace/context"
-	"crosstrace/internal/configs"
-	"crosstrace/internal/crypto"
 	mptree "crosstrace/internal/merkle"
 	"encoding/hex"
 	"fmt"
@@ -12,9 +10,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
-
-var hasher crypto.Hasher
-var JournalConfig configs.JournalConfig
 
 type RetrieveOptions int
 
@@ -35,11 +30,6 @@ func NewJournalCache(ctx *context.Context) JournalStore {
 	return &JournalCache{ctx: ctx, store: db}
 }
 
-// must be called from Main to set globally
-func SetAllJournalConfigs(cfg configs.JournalConfig) {
-	SetJournalConfigs(cfg)
-	SetJournalHasher()
-}
 
 // called by main
 // testing
@@ -98,12 +88,6 @@ func (res *CommitResult) Decode(data []byte) error {
 // that means if config are changed during run
 // simply call set JournalConfigs and other setJournal
 // to change package configuration
-func SetJournalHasher() {
-	hasher = crypto.NewHasher(JournalConfig.HasherName)
-}
-func SetJournalConfigs(cfgs configs.JournalConfig) {
-	JournalConfig = cfgs
-}
 
 // Handle Sanitization : add global error vars
 // change PreEntry/PostEntry to JournalEntry
@@ -135,7 +119,7 @@ func SanitizePreEntry(ctx *context.Context, pre *PreEntry) (JournalEntry, error)
 			cleanBuilder.WriteRune(r)
 		} else {
 			suspicious++
-			if JournalConfig.SafeMode {
+			if ctx.Journal.SafeMode {
 				// Replace with placeholder in safe mode
 				cleanBuilder.WriteRune(' ')
 			}
@@ -312,19 +296,18 @@ func (j *JournalCache) Close() error {
 func Format(s string, opts ...RetrieveOptions) string {
 	// do not support multiple options yet
 	// for future use
-	if len(opts) == 1 {
-		switch opts[0] {
-		case Checksum:
-			d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
-			return d
-		default:
-			d := hex.EncodeToString(hasher.Sum(fmt.Appendf(nil, "chk:%s", s)))
-			return d
-		}
-	}
-	d := hex.EncodeToString(fmt.Appendf(nil, "chk:%s", s))
-	return d
-
+	/*
+		if len(opts) == 1 {
+			switch opts[0] {
+			case Checksum:
+				d := hex.EncodeToString((fmt.Appendf(nil, "chk:%s", s)))
+				return d
+			default:
+				d := hex.EncodeToString((fmt.Appendf(nil, "chk:%s", s)))
+				return d
+			}
+		}*/
+	return hex.EncodeToString(fmt.Appendf(nil, "chk:%s", s))
 }
 
 func FormatSeq(s string, n int) string {
