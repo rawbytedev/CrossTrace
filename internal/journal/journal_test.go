@@ -383,12 +383,13 @@ each seq represent an event stored in order seq:%s:%d -> id of event
 */
 func TestFormatSeq(t *testing.T) {
 	cfg := NewJournalConfig()
-	ctx := context.NewContext(configs.Configs{Journal: *cfg})
+	ctx := context.Context{Journal: *cfg}
 	ctx.Hasher = crypto.NewHasher(ctx.Journal.HasherName)
 	s := hex.EncodeToString(ctx.Hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", "12", 1)))
-	b := FormatSeq("12", 1)
+	b := FormatSeq("12", 1) // this only formats into seq:%s:%d
 	dat1, _ := hex.DecodeString(s)
-	dat2, _ := hex.DecodeString(b)
+	val, _ := hex.DecodeString(b)
+	dat2 := ctx.Hasher.Sum(val)
 	if !bytes.Equal(dat1, dat2) {
 		print("Bad")
 	}
