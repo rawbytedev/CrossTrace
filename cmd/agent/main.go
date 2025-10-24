@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"crosstrace/cmd/agent/tools"
+	crosstracetools "crosstrace/cmd/agent/tools"
+	cont "crosstrace/context"
 	"crosstrace/internal/configs"
 	"crosstrace/internal/crossmint"
 	"crosstrace/internal/journal"
@@ -54,10 +55,10 @@ func main() {
 	log.Print("Starting CrossTrace")
 	//set global var
 	log.Print("Seting globals variable")
-	journal.SetAllJournalConfigs(cfgs.Journal)
+	//journal.SetAllJournalConfigs(cfgs.Journal)
 	crossmint.SetMintConfig(cfgs.Minting)
 	client, _ := crossmint.NewAnchorClient(cfgs.Anchor.SolanaRPC, cfgs.Anchor.KeypairPath)
-	cache := journal.NewJournalCache(&cfgs.Journal)
+	cache := journal.NewJournalCache(cont.NewContext(cfgs))
 	var alltools []tools.Tool
 	Logtool := crosstracetools.NewLogEventTool(cache)
 	Sealtool := crosstracetools.NewSealBatchTool(cache, client)
