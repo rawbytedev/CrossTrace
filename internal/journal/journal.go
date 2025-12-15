@@ -30,7 +30,6 @@ func NewJournalCache(ctx *context.Context) JournalStore {
 	return &JournalCache{ctx: ctx, store: db}
 }
 
-
 // called by main
 // testing
 // this is received by ai
@@ -81,6 +80,12 @@ func (res *CommitResult) Encode() ([]byte, error) {
 	return res.ctx.Encoder.Encode(res)
 }
 func (res *CommitResult) Decode(data []byte) error {
+	return res.ctx.Encoder.Decode(data, res)
+}
+func (res *Commitment) Encode() ([]byte, error) {
+	return res.ctx.Encoder.Encode(res)
+}
+func (res *Commitment) Decode(data []byte) error {
 	return res.ctx.Encoder.Decode(data, res)
 }
 
@@ -187,42 +192,50 @@ func (j *JournalCache) BuildTree() error {
 	return nil
 }
 
-// this is related to commitresult needed to mint and anchor
-// run after calling buildtree and before committing onto database
-// needs len(j.post) j.treeroot timewindow
-func (j *JournalCache) BatchInsert() (*CommitResult, error) {
+// prepares a batch
+func (j *JournalCache) Batch() (*CommitResult, error) {
+	if uint32(len(j.Post)) == 0 {
+		if j.commitRes != nil {
+			return j.commitRes, nil
+		}
+		return nil, nil
+	}
 	batch := CommitResult{
 		ctx:          j.ctx,
 		Root:         [32]byte(j.treeroot),
 		Count:        uint32(len(j.Post)),
 		WindowsStart: j.Post[0].GetTimestamp(),
 		WindowsEnd:   j.Post[len(j.Post)-1].GetTimestamp(),
+		version:      "v1",
 	}
-	// encode root + count
 	enc, err := batch.Encode()
-	fmt.Print("Logging encoded")
-	fmt.Print(enc)
 	if err != nil {
 		return &CommitResult{}, err
 	}
-	// derive hash from both
-	// us it as id
-	batch.BatchID = hex.EncodeToString(j.hash(enc))
-	newenc, err := batch.Encode()
-	j.batchid = batch.BatchID
+	batchcommitment := j.ctx.Hasher.Sum(enc)
+	batchdata := &Commitment{
+		ctx:          j.ctx,
+		Roothash:     [32]byte(j.treeroot),
+		Count:        uint32(len(j.Post)),
+		WindowsStart: j.Post[0].GetTimestamp(),
+		WindowsEnd:   j.Post[len(j.Post)-1].GetTimestamp(),
+		commitment:   batchcommitment,
+	}
+	data, err := batchdata.Encode()
 	if err != nil {
 		return &CommitResult{}, err
 	}
-	return &batch, j.store.Put(j.ctx.Hasher.Sum([]byte(batch.BatchID)), newenc)
+	j.batchid = batchcommitment
+	batch.batchID = string(batchcommitment)
+	j.commitRes = &batch
+	return &batch, j.store.Put(fmt.Appendf(nil, "b:%x", batchcommitment), data)
 }
 
-// only store post Entries
-// entry are rehashed
-// pattern
-// chk:%s (checksum) -> PostEntry
-// batch:%s (batchid) -> CommitResult
-// seq:%s:%s (batchid) (n) -> checksum
 func (j *JournalCache) Commit() error {
+	_, err := j.Batch()
+	if err != nil {
+		return fmt.Errorf("%s", err)
+	}
 	// j.Post get zerro when it goes low
 	// we can't get size from it at that point
 	// at this point seems like j contents get corrupted? need to investigate
@@ -246,12 +259,15 @@ func (j *JournalCache) largeCommit() error {
 		if err != nil {
 			return err
 		}
-		err = j.store.BatchPut(j.hash(fmt.Appendf(nil, "chk:%s", entry.GetID())), enc)
+		err = j.store.BatchPut(fmt.Appendf(nil, "e:%x", entry.GetID()), enc)
 		if err != nil {
 			return err
 		}
-		//use j.batchid here to test bug/ replace with batchid below
-		err = j.store.BatchPut(j.hash(fmt.Appendf(nil, "seq:%s:%d", batchid, i)), []byte(entry.GetID()))
+		err = j.store.BatchPut(fmt.Appendf(nil, "p:%x:%d", batchid, i), []byte(entry.GetID()))
+		if err != nil {
+			return err
+		}
+		err = j.store.BatchPut(fmt.Appendf(nil, "r:%s", entry.GetID()), batchid)
 		if err != nil {
 			return err
 		}
@@ -259,7 +275,7 @@ func (j *JournalCache) largeCommit() error {
 		// for testing the problem
 		// replace size-1 with len(j.Post)
 		// might be because it's a pointer?
-    // can be done after loop
+		// can be done after loop
 		if i == size-1 {
 			err = j.store.BatchPut(nil, nil)
 			if err != nil {
@@ -275,17 +291,16 @@ func (j *JournalCache) largeCommit() error {
 // hash it according to type before calling it
 func (j *JournalCache) Get(id string) ([]byte, error) {
 	item, err := hex.DecodeString(id)
-	obj := j.ctx.Hasher.Sum(item)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
-	return j.store.Get(obj)
+	return j.store.Get(item)
 }
 
 // clean everything / for now it can only clear
 func (j *JournalCache) RoolBack() {
 	j.Post = j.Post[:0]
-	j.batchid = ""
+	j.batchid = j.batchid[:0]
 	j.treeroot = nil
 }
 func (j *JournalCache) Close() error {
@@ -295,25 +310,12 @@ func (j *JournalCache) Close() error {
 
 // small Format implementation
 func Format(s string, opts ...RetrieveOptions) string {
-	// do not support multiple options yet
-	// for future use
-	/*
-		if len(opts) == 1 {
-			switch opts[0] {
-			case Checksum:
-				d := hex.EncodeToString((fmt.Appendf(nil, "chk:%s", s)))
-				return d
-			default:
-				d := hex.EncodeToString((fmt.Appendf(nil, "chk:%s", s)))
-				return d
-			}
-		}*/
-	return hex.EncodeToString(fmt.Appendf(nil, "chk:%s", s))
+	return hex.EncodeToString(fmt.Appendf(nil, "e:%x", s))
 }
 
 func FormatSeq(s string, n int) string {
-	return hex.EncodeToString(fmt.Appendf(nil, "seq:%s:%d", s, n))
+	return hex.EncodeToString(fmt.Appendf(nil, "p:%x:%d", []byte(s), n))
 }
 func FormatBatch(s string) string {
-	return hex.EncodeToString([]byte(s))
+	return hex.EncodeToString(fmt.Appendf(nil, "b:%x", s))
 }

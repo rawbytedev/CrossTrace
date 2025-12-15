@@ -121,6 +121,10 @@ func TestJournalInsert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = journal.Batch()
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = journal.Commit()
 	if err != nil {
 		t.Fatal(err)
@@ -239,10 +243,6 @@ func TestJournalInsertGet(t *testing.T) {
 	}
 }
 
-// error when trying to use in
-// tempdir
-// it has to do with how batcher handles write?
-// The process cannot access the file because it is being used by another process.
 func TestBatchQuery(t *testing.T) {
 	new := true
 	if new {
@@ -273,7 +273,7 @@ func TestBatchQuery(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		com, err := journal.BatchInsert()
+		com, err := journal.Batch()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -301,7 +301,7 @@ func TestBatchQuery(t *testing.T) {
 		for i := range com.Count {
 			// retrieving checksum from batchID and at index i
 			// the comparing with records
-			data, err := journal.Get(FormatSeq(com.BatchID, int(i)))
+			data, err := journal.Get(FormatSeq(com.batchID, int(i)))
 			if err != nil {
 				t.Log(err)
 				t.Fatal("sequence while using Format for Seq")
@@ -313,7 +313,7 @@ func TestBatchQuery(t *testing.T) {
 		t.Log("Retrieving Batch")
 		var v CommitResult
 		v.ctx = &ctx
-		data, err := journal.Get(FormatBatch(com.BatchID))
+		data, err := journal.Get(FormatBatch(com.batchID))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -331,7 +331,7 @@ func TestBatchQuery(t *testing.T) {
 	} else {
 		// only peform query doesn't write to db
 		_ = CommitResult{
-			BatchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
+			batchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
 			Root:    [32]byte{89, 82, 203, 230, 157, 145, 229, 24, 119, 35, 162, 39, 108, 37, 209, 71, 3, 171, 242, 49, 6, 1, 84, 104, 252, 65, 22, 173, 7, 180, 233, 189},
 			Count:   0x3,
 		}

@@ -17,7 +17,3 @@ SealBatch handles operations such as batching, generating merkletree, storing in
 and anchoring receipt on solana
 
 ## Usage
-
-- Improve Journaling
-- Improve DB
-- Add Benchmarking

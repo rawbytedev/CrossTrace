@@ -21,16 +21,25 @@ type JournalStore interface {
 	Entries() []JournalEntry
 	BuildTree() error
 	Get(id string) ([]byte, error)
-	BatchInsert() (*CommitResult, error)
-	Close() error // shutdows
+	Batch() (*CommitResult, error) // used for manual batch creation
+	Close() error                        // shutdows
 }
 type CommitResult struct {
 	ctx          *context.Context
-	BatchID      string
+	batchID      string
 	Root         [32]byte
 	Count        uint32
 	WindowsStart time.Time // first j.Port // assuming that it is ordered
 	WindowsEnd   time.Time // last j.Post
+	version      string
+}
+type Commitment struct {
+	ctx          *context.Context // anonymous
+	Roothash     [32]byte
+	Count        uint32
+	WindowsStart time.Time
+	WindowsEnd   time.Time
+	commitment   []byte
 }
 
 // Default format when received / Unsafe
@@ -79,9 +88,10 @@ func NewLocalStorage(ctx *context.Context) (database.StorageDB, error) {
 // this avoid having to recompute tree if something fails along the way
 
 type JournalCache struct {
-	ctx      *context.Context
-	store    database.StorageDB
-	Post     []JournalEntry
-	treeroot []byte
-	batchid  string
+	ctx       *context.Context
+	store     database.StorageDB
+	Post      []JournalEntry
+	treeroot  []byte
+	batchid   []byte
+	commitRes *CommitResult
 }
