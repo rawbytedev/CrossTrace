@@ -321,7 +321,7 @@ func TestBatchQuery(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if v.Root != com.Root {
+		if v.Roothash != com.Root {
 			t.Fatal("mismatch Roots")
 		}
 		err = journal.Close()
