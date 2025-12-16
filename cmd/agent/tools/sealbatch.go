@@ -24,7 +24,7 @@ func (t *SealBatchTool) Call(ctx context.Context, input string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	batch, err := t.Journal.BatchInsert()
+	batch, err := t.Journal.Batch()
 	if err != nil {
 		return "", err
 	}
