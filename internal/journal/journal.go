@@ -170,9 +170,7 @@ func (j *JournalCache) Append(entry JournalEntry) (string, error) {
 	return entry.GetID(), nil
 }
 
-// only call this when ready to commit
-// do not insert after building tree
-// if you insert rebuild tree or it won't match
+// Builds a Merkel tree from entries
 func (j *JournalCache) BuildTree() error {
 	tree := mptree.NewMerkleTree()
 	var elem [][]byte
@@ -206,7 +204,7 @@ func (j *JournalCache) Batch() (*CommitResult, error) {
 		Count:        uint32(len(j.Post)),
 		WindowsStart: j.Post[0].GetTimestamp(),
 		WindowsEnd:   j.Post[len(j.Post)-1].GetTimestamp(),
-		version:      "v1",
+		Version:      "v1",
 	}
 	enc, err := batch.Encode()
 	if err != nil {
@@ -219,14 +217,14 @@ func (j *JournalCache) Batch() (*CommitResult, error) {
 		Count:        uint32(len(j.Post)),
 		WindowsStart: j.Post[0].GetTimestamp(),
 		WindowsEnd:   j.Post[len(j.Post)-1].GetTimestamp(),
-		commitment:   batchcommitment,
+		Commitment:   batchcommitment,
 	}
 	data, err := batchdata.Encode()
 	if err != nil {
 		return &CommitResult{}, err
 	}
 	j.batchid = batchcommitment
-	batch.batchID = string(batchcommitment)
+	batch.BatchID = string(batchcommitment)
 	j.commitRes = &batch
 	return &batch, j.store.Put(fmt.Appendf(nil, "b:%x", batchcommitment), data)
 }

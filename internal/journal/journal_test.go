@@ -301,7 +301,7 @@ func TestBatchQuery(t *testing.T) {
 		for i := range com.Count {
 			// retrieving checksum from batchID and at index i
 			// the comparing with records
-			data, err := journal.Get(FormatSeq(com.batchID, int(i)))
+			data, err := journal.Get(FormatSeq(com.BatchID, int(i)))
 			if err != nil {
 				t.Log(err)
 				t.Fatal("sequence while using Format for Seq")
@@ -311,9 +311,9 @@ func TestBatchQuery(t *testing.T) {
 			}
 		}
 		t.Log("Retrieving Batch")
-		var v CommitResult
+		var v Commitment
 		v.ctx = &ctx
-		data, err := journal.Get(FormatBatch(com.batchID))
+		data, err := journal.Get(FormatBatch(com.BatchID))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -321,7 +321,7 @@ func TestBatchQuery(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if v.Root != com.Root {
+		if v.Roothash != com.Root {
 			t.Fatal("mismatch Roots")
 		}
 		err = journal.Close()
@@ -331,7 +331,7 @@ func TestBatchQuery(t *testing.T) {
 	} else {
 		// only peform query doesn't write to db
 		_ = CommitResult{
-			batchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
+			BatchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
 			Root:    [32]byte{89, 82, 203, 230, 157, 145, 229, 24, 119, 35, 162, 39, 108, 37, 209, 71, 3, 171, 242, 49, 6, 1, 84, 104, 252, 65, 22, 173, 7, 180, 233, 189},
 			Count:   0x3,
 		}

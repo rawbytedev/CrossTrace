@@ -26,12 +26,12 @@ type JournalStore interface {
 }
 type CommitResult struct {
 	ctx          *context.Context
-	batchID      string
+	BatchID      string
 	Root         [32]byte
 	Count        uint32
 	WindowsStart time.Time // first j.Port // assuming that it is ordered
 	WindowsEnd   time.Time // last j.Post
-	version      string
+	Version      string
 }
 type Commitment struct {
 	ctx          *context.Context // anonymous
@@ -39,7 +39,7 @@ type Commitment struct {
 	Count        uint32
 	WindowsStart time.Time
 	WindowsEnd   time.Time
-	commitment   []byte
+	Commitment   []byte
 }
 
 // Default format when received / Unsafe
