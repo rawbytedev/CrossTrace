@@ -311,7 +311,7 @@ func TestBatchQuery(t *testing.T) {
 			}
 		}
 		t.Log("Retrieving Batch")
-		var v CommitResult
+		var v Commitment
 		v.ctx = &ctx
 		data, err := journal.Get(FormatBatch(com.BatchID))
 		if err != nil {
