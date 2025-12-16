@@ -41,10 +41,10 @@ func MintReceiptNFT(ctx context.Context, rec journal.CommitResult, tx string) (s
 		"metadata": map[string]interface{}{
 			"name":        "CrossTrace Batch Receipt",
 			"image":       "https://placehold.co/600x400.png", // required field
-			"description": fmt.Sprintf("Merkle root receipt for batch %s", rec.BatchID),
+			"description": fmt.Sprintf("Merkle root receipt for batch %s", rec.batchID),
 			"attributes": []map[string]string{
 				{"trait_type": "merkle_root", "value": fmt.Sprintf("%x", rec.Root[:])},
-				{"trait_type": "batch_id", "value": rec.BatchID},
+				{"trait_type": "batch_id", "value": rec.batchID},
 				{"trait_type": "count", "value": fmt.Sprintf("%d", rec.Count)},
 				{"trait_type": "solana_tx", "value": tx},
 			},
