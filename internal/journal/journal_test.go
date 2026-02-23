@@ -2,10 +2,10 @@ package journal
 
 import (
 	"bytes"
-	"crosstrace/context"
 	"crosstrace/internal/configs"
 	"crosstrace/internal/crypto"
 	"crosstrace/internal/encoder"
+	"crosstrace/settings"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -26,7 +26,7 @@ func NewJournalConfig() *configs.JournalConfig {
 	}
 }
 
-func GeneRandomPreEntry(ctx *context.Context) []*PreEntry {
+func GeneRandomPreEntry(ctx *settings.Settings) []*PreEntry {
 	var items []*PreEntry
 	for range 7 {
 		items = append(items, &PreEntry{
@@ -57,7 +57,7 @@ func GeneRandomPreEntry(ctx *context.Context) []*PreEntry {
 
 	return items
 }
-func GeneConstantPreEntry(ctx *context.Context) []*PreEntry {
+func GeneConstantPreEntry(ctx *settings.Settings) []*PreEntry {
 	var items []*PreEntry
 	items = append(items, &PreEntry{
 		ctx:        ctx,
@@ -95,7 +95,7 @@ func GeneConstantPreEntry(ctx *context.Context) []*PreEntry {
 }
 func TestJournalInsert(t *testing.T) {
 	cfg := NewJournalConfig()
-	ctx := context.Context{Journal: *cfg}
+	ctx := settings.Settings{Journal: *cfg}
 	ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
 	ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 	journal := NewJournalCache(&ctx)
@@ -155,7 +155,7 @@ func TestJournalInsertGet(t *testing.T) {
 
 	if new {
 		cfg := NewJournalConfig()
-		ctx := context.Context{Journal: *cfg}
+		ctx := settings.Settings{Journal: *cfg}
 		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
 		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
@@ -205,7 +205,7 @@ func TestJournalInsertGet(t *testing.T) {
 		}
 	} else {
 		cfg := NewJournalConfig()
-		ctx := context.Context{Journal: *cfg}
+		ctx := settings.Settings{Journal: *cfg}
 		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
 		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
@@ -247,7 +247,7 @@ func TestBatchQuery(t *testing.T) {
 	new := true
 	if new {
 		cfg := NewJournalConfig()
-		ctx := context.Context{Journal: *cfg}
+		ctx := settings.Settings{Journal: *cfg}
 		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
 		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
@@ -301,7 +301,7 @@ func TestBatchQuery(t *testing.T) {
 		for i := range com.Count {
 			// retrieving checksum from batchID and at index i
 			// the comparing with records
-			data, err := journal.Get(FormatSeq(com.batchID, int(i)))
+			data, err := journal.Get(FormatSeq(com.BatchID, int(i)))
 			if err != nil {
 				t.Log(err)
 				t.Fatal("sequence while using Format for Seq")
@@ -311,17 +311,18 @@ func TestBatchQuery(t *testing.T) {
 			}
 		}
 		t.Log("Retrieving Batch")
-		var v CommitResult
+		var v Commitment
 		v.ctx = &ctx
-		data, err := journal.Get(FormatBatch(com.batchID))
+		data, err := journal.Get(FormatBatch(com.BatchID))
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Log(data)
 		err = v.Decode(data)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if v.Root != com.Root {
+		if v.Roothash != com.Root {
 			t.Fatal("mismatch Roots")
 		}
 		err = journal.Close()
@@ -331,12 +332,12 @@ func TestBatchQuery(t *testing.T) {
 	} else {
 		// only peform query doesn't write to db
 		_ = CommitResult{
-			batchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
+			BatchID: "09dd1d47d7f0e5dfac278513a723b6d424558669feb014aecf5afce040c18211",
 			Root:    [32]byte{89, 82, 203, 230, 157, 145, 229, 24, 119, 35, 162, 39, 108, 37, 209, 71, 3, 171, 242, 49, 6, 1, 84, 104, 252, 65, 22, 173, 7, 180, 233, 189},
 			Count:   0x3,
 		}
 		cfg := NewJournalConfig()
-		ctx := context.Context{Journal: *cfg}
+		ctx := settings.Settings{Journal: *cfg}
 		ctx.Encoder = encoder.NewEncoder(cfg.EncoderName)
 		ctx.Hasher = crypto.NewHasher(cfg.HasherName)
 		journal := NewJournalCache(&ctx)
@@ -383,7 +384,7 @@ each seq represent an event stored in order seq:%s:%d -> id of event
 */
 func TestFormatSeq(t *testing.T) {
 	cfg := NewJournalConfig()
-	ctx := context.Context{Journal: *cfg}
+	ctx := settings.Settings{Journal: *cfg}
 	ctx.Hasher = crypto.NewHasher(ctx.Journal.HasherName)
 	s := hex.EncodeToString(ctx.Hasher.Sum(fmt.Appendf(nil, "seq:%s:%d", "12", 1)))
 	b := FormatSeq("12", 1) // this only formats into seq:%s:%d

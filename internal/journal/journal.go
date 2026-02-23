@@ -1,8 +1,9 @@
 package journal
 
 import (
-	"crosstrace/context"
+	"context"
 	mptree "crosstrace/internal/merkle"
+	"crosstrace/settings"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -21,7 +22,7 @@ const (
 
 // Entry point to Journalling
 
-func NewJournalCache(ctx *context.Context) JournalStore {
+func NewJournalCache(ctx *settings.Settings) JournalStore {
 	db, err := NewLocalStorage(ctx)
 	if err != nil {
 		fmt.Print(err)
@@ -34,10 +35,10 @@ func NewJournalCache(ctx *context.Context) JournalStore {
 // testing
 // this is received by ai
 // Will remove this
-func NewPreEntry(ctx *context.Context, raw_msg string, sender_id string, source string, session_id string) *PreEntry {
+func NewPreEntry(ctx *settings.Settings, raw_msg string, sender_id string, source string, session_id string) *PreEntry {
 	return &PreEntry{ctx: ctx, raw_msg: raw_msg, sender_id: sender_id, source: source, session_id: session_id}
 }
-func NewPostEntryWithCtx(ctx *context.Context) *PostEntry {
+func NewPostEntryWithCtx(ctx *settings.Settings) *PostEntry {
 	return &PostEntry{ctx: ctx}
 }
 
@@ -96,7 +97,7 @@ func (res *Commitment) Decode(data []byte) error {
 
 // Handle Sanitization : add global error vars
 // change PreEntry/PostEntry to JournalEntry
-func SanitizePreEntry(ctx *context.Context, pre *PreEntry) (JournalEntry, error) {
+func SanitizePreEntry(ctx *settings.Settings, pre *PreEntry) (JournalEntry, error) {
 	// size check
 
 	if len(pre.raw_msg) > ctx.Journal.MaxMsgSize {
@@ -219,23 +220,19 @@ func (j *JournalCache) Batch() (*CommitResult, error) {
 		Count:        uint32(len(j.Post)),
 		WindowsStart: j.Post[0].GetTimestamp(),
 		WindowsEnd:   j.Post[len(j.Post)-1].GetTimestamp(),
-		commitment:   batchcommitment,
+		Commitment:   batchcommitment,
 	}
 	data, err := batchdata.Encode()
 	if err != nil {
 		return &CommitResult{}, err
 	}
 	j.batchid = batchcommitment
-	batch.batchID = string(batchcommitment)
+	batch.BatchID = string(batchcommitment)
 	j.commitRes = &batch
-	return &batch, j.store.Put(fmt.Appendf(nil, "b:%x", batchcommitment), data)
+	return &batch, j.store.Put(context.Background(), fmt.Appendf(nil, "b:%x", batchcommitment), data)
 }
 
 func (j *JournalCache) Commit() error {
-	_, err := j.Batch()
-	if err != nil {
-		return fmt.Errorf("%s", err)
-	}
 	// j.Post get zerro when it goes low
 	// we can't get size from it at that point
 	// at this point seems like j contents get corrupted? need to investigate
@@ -254,30 +251,26 @@ func (j *JournalCache) hash(data []byte) []byte {
 func (j *JournalCache) largeCommit() error {
 	size := len(j.Post)
 	batchid := j.batchid
+	batch := j.store.Batch()
 	for i, entry := range j.Post {
 		enc, err := entry.Encode()
 		if err != nil {
 			return err
 		}
-		err = j.store.BatchPut(fmt.Appendf(nil, "e:%x", entry.GetID()), enc)
+		err = batch.Put(fmt.Appendf(nil, "e:%x", entry.GetID()), enc)
 		if err != nil {
 			return err
 		}
-		err = j.store.BatchPut(fmt.Appendf(nil, "p:%x:%d", batchid, i), []byte(entry.GetID()))
+		err = batch.Put(fmt.Appendf(nil, "p:%x:%d", batchid, i), []byte(entry.GetID()))
 		if err != nil {
 			return err
 		}
-		err = j.store.BatchPut(fmt.Appendf(nil, "r:%s", entry.GetID()), batchid)
+		err = batch.Put(fmt.Appendf(nil, "r:%s", entry.GetID()), batchid)
 		if err != nil {
 			return err
 		}
-		// once for last elem
-		// for testing the problem
-		// replace size-1 with len(j.Post)
-		// might be because it's a pointer?
-		// can be done after loop
 		if i == size-1 {
-			err = j.store.BatchPut(nil, nil)
+			err = batch.Commit(context.TODO())
 			if err != nil {
 				return err
 			}
@@ -294,7 +287,7 @@ func (j *JournalCache) Get(id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return j.store.Get(item)
+	return j.store.Get(context.TODO(), item)
 }
 
 // clean everything / for now it can only clear

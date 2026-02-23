@@ -1,11 +1,13 @@
 module crosstrace
 
-go 1.24.3
+go 1.25.2
 
 require (
 	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/ethereum/go-ethereum v1.16.3
 )
+
+require github.com/rawbytedev/zerokv v1.0.101 
 
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -27,7 +29,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/yargevad/filepathx v1.0.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
