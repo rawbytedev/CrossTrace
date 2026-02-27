@@ -65,12 +65,6 @@ go build -o crosstrace ./cmd/agent
 
 ---
 
-## Hackathon Context
-
-Built for the Internet of Agents Hackathon @ Solana Skyline (Sept 14–21, 2025)
-
----
-
 ## License
 
 All right reserved.

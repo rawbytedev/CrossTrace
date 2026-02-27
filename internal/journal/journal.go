@@ -171,9 +171,7 @@ func (j *JournalCache) Append(entry JournalEntry) (string, error) {
 	return entry.GetID(), nil
 }
 
-// only call this when ready to commit
-// do not insert after building tree
-// if you insert rebuild tree or it won't match
+// Builds a Merkel tree from entries
 func (j *JournalCache) BuildTree() error {
 	tree := mptree.NewMerkleTree()
 	var elem [][]byte
@@ -233,6 +231,10 @@ func (j *JournalCache) Batch() (*CommitResult, error) {
 }
 
 func (j *JournalCache) Commit() error {
+	_, err := j.Batch()
+	if err != nil {
+		return fmt.Errorf("%s", err)
+	}
 	// j.Post get zerro when it goes low
 	// we can't get size from it at that point
 	// at this point seems like j contents get corrupted? need to investigate
