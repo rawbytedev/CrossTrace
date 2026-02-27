@@ -1,4 +1,4 @@
-package context
+package settings
 
 import (
 	"crosstrace/internal/configs"
@@ -12,7 +12,7 @@ We have the main cfg that can be used to applied settings to other fields using
 ctx.Share() but we also allow users to configure it on their own if it's needed
 each field can be set with different configs and doesn't necessary needs to align with each other
 */
-type Context struct {
+type Settings struct {
 	Cfg     configs.Configs // usually only this needs to be set
 	Journal configs.JournalConfig
 	Anchor  configs.AnchorConfig
@@ -22,12 +22,12 @@ type Context struct {
 	Hasher  crypto.Hasher
 }
 
-func NewContext(cfg configs.Configs) *Context {
-	return &Context{Cfg: cfg}
+func NewContext(cfg configs.Configs) *Settings {
+	return &Settings{Cfg: cfg}
 }
 
 // uses cfg and set the other configs
-func (ctx *Context) Share() {
+func (ctx *Settings) Share() {
 	ctx.Journal = ctx.Cfg.Journal
 	ctx.Anchor = ctx.Cfg.Anchor
 	ctx.Batcher = ctx.Cfg.Batcher

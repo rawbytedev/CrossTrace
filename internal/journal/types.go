@@ -1,9 +1,12 @@
 package journal
 
 import (
-	"crosstrace/context"
-	"crosstrace/internal/journal/database"
+	"crosstrace/settings"
 	"time"
+
+	"github.com/rawbytedev/zerokv"
+	"github.com/rawbytedev/zerokv/badgerdb"
+	"github.com/rawbytedev/zerokv/pebbledb"
 )
 
 type JournalEntry interface {
@@ -22,19 +25,19 @@ type JournalStore interface {
 	BuildTree() error
 	Get(id string) ([]byte, error)
 	Batch() (*CommitResult, error) // used for manual batch creation
-	Close() error                        // shutdows
+	Close() error                  // shutdows
 }
 type CommitResult struct {
-	ctx          *context.Context
+	ctx          *settings.Settings
 	BatchID      string
 	Root         [32]byte
 	Count        uint32
 	WindowsStart time.Time // first j.Port // assuming that it is ordered
 	WindowsEnd   time.Time // last j.Post
-	Version      string
+	version      string
 }
 type Commitment struct {
-	ctx          *context.Context // anonymous
+	ctx          *settings.Settings
 	Roothash     [32]byte
 	Count        uint32
 	WindowsStart time.Time
@@ -44,7 +47,7 @@ type Commitment struct {
 
 // Default format when received / Unsafe
 type PreEntry struct {
-	ctx        *context.Context
+	ctx        *settings.Settings
 	sender_id  string
 	raw_msg    string
 	timestamp  time.Time
@@ -54,7 +57,7 @@ type PreEntry struct {
 
 // PostEntry is the sanitized event
 type PostEntry struct {
-	ctx       *context.Context
+	ctx       *settings.Settings
 	SenderID  string    `json:"sender_id"`
 	SessionID string    `json:"session_id"`
 	Timestamp time.Time `json:"timestamp"`
@@ -73,14 +76,14 @@ type Event struct {
 	comment    string
 }
 
-func NewLocalStorage(ctx *context.Context) (database.StorageDB, error) {
+func NewLocalStorage(ctx *settings.Settings) (zerokv.Core, error) {
 	switch ctx.Journal.DBName {
 	case "badgerdb":
-		return database.NewBadgerdb(ctx.Journal)
+		return badgerdb.NewBadgerDB(badgerdb.Config{Dir: ctx.Journal.DBPath})
 	case "pebbledb":
-		return database.NewPebbledb(ctx.Journal)
+		return pebbledb.NewPebbleDB(pebbledb.Config{Dir: ctx.Journal.DBPath})
 	default:
-		return database.NewBadgerdb(ctx.Journal)
+		return badgerdb.NewBadgerDB(badgerdb.Config{Dir: ctx.Journal.DBPath})
 	}
 }
 
@@ -88,8 +91,8 @@ func NewLocalStorage(ctx *context.Context) (database.StorageDB, error) {
 // this avoid having to recompute tree if something fails along the way
 
 type JournalCache struct {
-	ctx       *context.Context
-	store     database.StorageDB
+	ctx       *settings.Settings
+	store     zerokv.Core
 	Post      []JournalEntry
 	treeroot  []byte
 	batchid   []byte

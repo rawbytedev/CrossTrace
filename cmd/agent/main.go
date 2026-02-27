@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	crosstracetools "crosstrace/cmd/agent/tools"
-	cont "crosstrace/context"
+	cont "crosstrace/settings"
 	"crosstrace/internal/configs"
 	"crosstrace/internal/crossmint"
 	"crosstrace/internal/journal"
